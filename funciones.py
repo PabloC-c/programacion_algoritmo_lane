@@ -443,23 +443,30 @@ def check_factibility(instancia,model,y):
     for j in range(model._nincrements):
       y_j = y_t[y_t[4] == j]
       if len(y_j) > 0:
-        b     = y_j[0].iloc[0]
-        y_aux = y_j[y_j[0] == b]
-        prom  = y_aux[3].sum()
-        print(prom)
-      nprom = y_j[3].sum()
-      n     = len(y_j[0].unique())
-      if nprom - n*prom > tol or nprom - n*prom < -tol:
-        problem.append('Precedencia dentro de bloque')
-        break
-      p_increments[j] += prom
+        b0     = y_j[0].iloc[0]
+        y_0    = y_j[y_j[0] == b0]
+        prom_0 = y_0[3].sum()
+        p_increments[j] += prom_0
+        b_list = y_j[0].unique()
+        for b in b_list:
+          if b != b0:
+            y_aux = y_j[y_j[0] == b]
+            prom  = y_aux[3].sum()
+            if prom - prom_0 > tol or prom - prom_0 < -tol:
+              problem.append('Bloque no consistente')
+      
     for j in range(1,model._nincrements):
-        if p_increments[i] > tol:
-          if p_increments[i-1] < 1-tol:
+        if p_increments[j] > tol:
+          if p_increments[j-1] < 1-tol:
             problem.append('Precedencia entre incrementos')    
     output.append(problem)
-   
-  return output,p_increments  
+  
+  feasible = True
+  for i in range(len(output)):
+    if len(output[i]) > 1:
+       feasible = False
+       break
+  return feasible,output,p_increments  
   
   #hacer tablas:
   #Incremenntos: Tabla lo que saco por incremento por periodo

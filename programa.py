@@ -19,7 +19,7 @@ for valor in direcciones:
   directory = '../sols' + directory + 'txt'
   writer_y(directory,yf)
   y = read_y(directory)
-  output,pincrements = check_factibility(instancia,model,y)
+  feasible,output,pincrements = check_factibility(instancia,model,y)
   print(output)
   print(pincrements)
   #writer_v_k(directory_v,v_array)
