@@ -505,7 +505,7 @@ def Tablas(modelo,instancia,y):
               r += val_y * instancia[cons[0]].iloc[b]
         restricciones.append( str(r) + "" + "<=" + "" + str(cons[3]))
       for i in range(model._nincrements):
-        y_i= y[y[4]==i]]
+        y_i= y[[y[4]==i]]
         valor= y_i[0]
         incrementos.append(model._oincrements*valor[3])
     df3.append(restricciones)
