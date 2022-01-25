@@ -141,7 +141,7 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
   model.addConstrs((model._oincrements[i] * x[i] - mu[i]*model._qincrements[i] <= 0 for i in range(model._nincrements)), 'p1')
   model.addConstrs((model._oincrements[i] * x[i] - mu[i+1]*model._qincrements[i]>= 0 for i in range(model._nincrements-1)), 'p2')
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
-  model.addConstrs((x[i] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for b in model._bincrements[i]))
+  model.addConstrs((x[i] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for b in model._bincrements[i])) 
 
 #########################################################################################################################################################################################################################################
 #Funciones auxiliares
@@ -198,15 +198,15 @@ def update_constraints(model,Q,x = None):
       index += 1
   #var_x = [var for var in model.getVars() if "x" in var.VarName]
   #for j in range(model._nincrements):
-  #  var = var_x[j]
-  #  if x is None:
-  #    var.ub = 1.0
-  #  else:
-  #    bound = var.ub
-  #    if bound - x[j] <=0:
-  #      var.ub = 0
-  #    else:
-  #      var.ub = bound - x[j]
+   # var = var_x[j]
+    #if x is None:
+     # var.ub = 1.0
+    #else:
+     # bound = var.ub
+      #if bound - x[j] <=0:
+       # var.ub = 0
+      #else:
+       # var.ub = bound - x[j]
   model.update()
   
 def reset_qincrements(model):
@@ -472,5 +472,49 @@ def check_factibility(instancia,model,y):
   #hacer tablas:
   #Incremenntos: Tabla lo que saco por incremento por periodo
   #Valores: 3 columnas por año, van, lo que aporta el van sin decontar, con la tasa de decuento, cuanto hay acumulado
+
+def Tablas(modelo,instancia,y):
+  data= {"Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"}
+  data3=[]
+  for i in range(len(model._infocons)):
+    data3.append("Restriccion de capacidad" + str(i))
+  index= range(model._nperiods)
+  data2= range(model._nincrements)
+  df2=pd.DataFrame(data2,index)
+  df= pd.DataFrame(data,index)
+  df3=pd.DataFrame(data3,index)
+  Vf=0
+  Va=0
+  for t in range(model._nperiods):
+    restricciones=[]
+    incrementos=[]
+    A=0
+    y_t = y[y[2] == t]
+    for valor in y_t:
+      A= A + valor[3]* instancia[model.infoobj[y[1]]].iloc[y[0]]
+      for cons in model._infocons:
+        r = 0
+        if cons[1] == '*':
+          for q in range(len(y_t)):
+            b,val_y = int(y_t[0].iloc[q]),y_t[3].iloc[q]
+            r += val_y * instancia[cons[0]].iloc[b]
+        else:
+          for q in range(len(y_t)):
+            b,d,val_y =  int(y_t[0].iloc[q]),int(y[1].iloc[i]),y_t[3].iloc[q]
+            if d == int(cons[1]):
+              r += val_y * instancia[cons[0]].iloc[b]
+        restricciones.append( str(r) + "" + "<=" + "" + str(cons[3]))
+      for i in range(model._nincrements):
+        y_i= y[y[4]==i]]
+        valor= y_i[0]
+        incrementos.append(model._oincrements*valor[3])
+    df3.append(restricciones)
+    df2.append(incrementos)
+    Ad= A*(model.discount_rate)**t
+    Vf= Va + Ad
+    df.append([Va,A,Ad,Vf])
+    Va=Vf
+
+
 
     
