@@ -141,7 +141,7 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
   model.addConstrs((model._oincrements[i] * x[i] - mu[i]*model._qincrements[i] <= 0 for i in range(model._nincrements)), 'p1')
   model.addConstrs((model._oincrements[i] * x[i] - mu[i+1]*model._qincrements[i]>= 0 for i in range(model._nincrements-1)), 'p2')
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
-  model.addConstrs((x[i] == sum(y[b,d] for d in range(model._ndestinations))) for i in range(model._nincrements) for b in model._bincrements[i])
+  model.addConstrs((x[i] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for b in model._bincrements[i]))
 
 #########################################################################################################################################################################################################################################
 #Funciones auxiliares
@@ -181,6 +181,7 @@ def update_constraints(model,Q,x = None):
   mu = [var for var in model.getVars() if "mu" in var.VarName]
   for i in range(model._nincrements):
     p1 = model.getConstrByName('p1['+str(i)+']')
+    model.chgCoeff(p1, mu[i] , -model._qincrements[i])
     if i < model._nincrements - 1:
       p2 = model.getConstrByName('p2['+str(i)+']')
       model.chgCoeff(p2, mu[i+1] , -model._qincrements[i])
@@ -195,17 +196,17 @@ def update_constraints(model,Q,x = None):
       cf.rhs = aux
       model.chgCoeff(cf, lambda_var[index] , aux)
       index += 1
-  var_x = [var for var in model.getVars() if "x" in var.VarName]
-  for j in range(model._nincrements):
-    var = var_x[j]
-    if x is None:
-      var.ub = 1.0
-    else:
-      bound = var.ub
-      if bound - x[j] <=0:
-        var.ub = 0
-      else:
-        var.ub = bound - x[j]
+  #var_x = [var for var in model.getVars() if "x" in var.VarName]
+  #for j in range(model._nincrements):
+  #  var = var_x[j]
+  #  if x is None:
+  #    var.ub = 1.0
+  #  else:
+  #    bound = var.ub
+  #    if bound - x[j] <=0:
+  #      var.ub = 0
+  #    else:
+  #      var.ub = bound - x[j]
   model.update()
   
 def reset_qincrements(model):
