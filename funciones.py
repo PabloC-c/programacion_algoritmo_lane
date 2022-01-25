@@ -514,6 +514,7 @@ def Tablas(modelo,instancia,y):
     Vf= Va + Ad
     df.append([Va,A,Ad,Vf])
     Va=Vf
+    return df,df1,df2
 
 
 

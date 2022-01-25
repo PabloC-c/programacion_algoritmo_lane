@@ -22,6 +22,11 @@ for valor in direcciones:
   feasible,output,pincrements = check_factibility(instancia,model,y)
   print(output)
   print(pincrements)
+  tablas=tablas(modelo,instancia,y)
+  print(tablas[0])
+  print(tablas[1])
+  print(tablas[2])
+
   #writer_v_k(directory_v,v_array)
   #writer_times(directory_times,times)
   print('Siguiente problema')
