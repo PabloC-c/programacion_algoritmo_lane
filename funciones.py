@@ -346,7 +346,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
     print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
-    if True and k> 2:
+    if vk0>=vk1 and k> 2:
         #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
         return y0_array,x0_array,times_k,q_array,v_array
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
@@ -435,10 +435,10 @@ def check_factibility(instancia,model,y):
           r += val_y * instancia[cons[0]].iloc[b]
       else:
         for q in range(len(y_t)):
-          b,d,val_y =  int(y_t[0].iloc[q]),int(y[1].iloc[i]),y_t[3].iloc[q]
+          b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
           if d == int(cons[1]):
             r += val_y * instancia[cons[0]].iloc[b]
-      if r-cons[3] > 0 :
+      if r-cons[3] > tol :
           problem.append('R. Capacidad '+str(index))
       index +=1
     for j in range(model._nincrements):
@@ -474,51 +474,60 @@ def check_factibility(instancia,model,y):
   #Valores: 3 columnas por año, van, lo que aporta el van sin decontar, con la tasa de decuento, cuanto hay acumulado
 
 def Tablas(model,instancia,y):
+  tf = max(y[2])
+  t0 = min(y[2])
+  if t0 == 0:
+    tf = tf + 1
   data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
   data3=[]
   for i in range(len(model._infocons)):
     data3.append("Restriccion de capacidad" + str(i))
   data2= range(model._nincrements)
-  df= pd.DataFrame(columns=data,index=range(model._nperiods))
-  df2=pd.DataFrame(columns=data2,index=range(model._nperiods))
-  df3=pd.DataFrame(columns=data3,index=range(model._nperiods))
+  df= pd.DataFrame(columns=data,index=range(int(tf)))
+  df2=pd.DataFrame(columns=data2,index=range(int(tf)))
+  df3=pd.DataFrame(columns=data3,index=range(int(tf)))
   Vf=0
   Va=0
-  for t in range(0,model._nperiods):
+  for i in range(int(tf)):
+    if t0 == 1:
+      t = i+1
+    else:
+      t = i 
     restricciones=[]
     incrementos=[]
     A=0
     Ad=0
     y_t = y[y[2] == t]
     for q in range(len(y_t)):
-      b,d,val_y =  int(y_t[0].iloc[q]),int(y[1].iloc[i]),y_t[3].iloc[q]
-      A= A + val_y* instancia[model._infoobj[d]].iloc[b]
+      b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
+      A = A + val_y* instancia[model._infoobj[d]].iloc[b]
     for cons in model._infocons:
       r = 0
       if cons[1] == '*':
           for q in range(len(y_t)):
             b,val_y = int(y_t[0].iloc[q]),y_t[3].iloc[q]
             r += val_y * instancia[cons[0]].iloc[b]
-            print(r)
           restricciones.append( "*"+str(r) + "" + "<=" + "" + str(cons[3]))
       else:
           for q in range(len(y_t)):
-            b,d,val_y =  int(y_t[0].iloc[q]),int(y[1].iloc[i]),y_t[3].iloc[q]
-            #if d == int(cons[1]):
-            r += val_y * instancia[cons[0]].iloc[b]
-            print(r)
+            b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
+            if d == int(cons[1]):
+              r += val_y * instancia[cons[0]].iloc[b]
           restricciones.append( "s"+str(r) + "" + "<=" + "" + str(cons[3]))
     for j in range(model._nincrements):
         y_j = y_t[y_t[4] == j]
         if len(y_j) > 0:
-          incrementos.append(model._oincrements*int(y_t[0].iloc[1]))
+          b0     = y_j[0].iloc[0]
+          y_0    = y_j[y_j[0] == b0]
+          prom_0 = y_0[3].sum()
+          incrementos.append(prom_0)
         else:
           incrementos.append(0)
-    df3.iloc[t]= restricciones
-    df2.iloc[t]= incrementos
-    Ad= A*(model._discount_rate)**t
+    df3.iloc[i]= restricciones
+    df2.iloc[i]= incrementos
+    Ad= A*(model._discount_rate)**i
     Vf= Va + Ad
-    df.iloc[t]= [Va,A,Ad,Vf]
+    df.iloc[i]= [Va,A,Ad,Vf]
     Va=Vf
   return df,df2,df3
 
