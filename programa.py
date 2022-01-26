@@ -24,10 +24,13 @@ for valor in direcciones:
   #print(output)
   #print(pincrements)
   tablas=Tablas(model,instancia,y)
-  print(tablas[0])
-  print(tablas[1])
-  print(tablas[2])
-
+  #print(tablas[0])
+  #print(tablas[1])
+  #print(tablas[2])
+  i=0
+  while i <= 3:
+    write_tablas(tablas[i],directory,i)
+    i+=1
   #writer_v_k(directory_v,v_array)
   #writer_times(directory_times,times)
   print('Siguiente problema')

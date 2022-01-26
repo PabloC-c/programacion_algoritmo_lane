@@ -531,6 +531,10 @@ def Tablas(model,instancia,y):
     Va=Vf
   return df,df2,df3
 
+#######
 
+def write_tablas(Tabla,directory,i,Header=False, Index =False):
+  directory = directory[:-4] +"Tabla"+ str(i) + ".txt"
+  Tabla.to_csv(directory,header=Header,index=Index)
 
     
