@@ -261,9 +261,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
   aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
   aux_v_array  = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
-  #print('Creacion modelo')  
+  ##print('Creacion modelo')  
   create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full)
-  #print("Modelo creado")
+  ##print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
   v_array = [[0 for i in range(model._nperiods+1)]]
   q_array = [[[(Q0*i)/model._nperiods] for i in range(model._nperiods,-1,-1)]]
@@ -274,7 +274,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
   y0_array = []
   #Tiempos de ejecucion
   times_k  = []
-  print('Primer ciclo')
+  #print('Primer ciclo')
   while True:
     time0   = time.time()
     #Arreglos para las variables x,y y los valores u,q
@@ -286,15 +286,15 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     t     = 1
     # Optimizacion de V
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
-    #print("Segundo ciclo")
+    ##print("Segundo ciclo")
     while Q_k > 0 and t <= model._nperiods:
       #Pptimizacion de model cuando resta Q_k en la mina en el tiempo t
-      print('Comienzo optimizacion')
+      #print('Comienzo optimizacion')
       model.optimize()
-      print('Optimizacion Terminada')
+      #print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
-      #print('Lo que saco',bar_x)
+      ##print('Lo que saco',bar_x)
       x_array.append(bar_x)
       bar_y = get_vary(model,instancia)
       bar_z = [bar_y[b][1] for b in range(len(bar_y))] #Suponemos que 1(el indice 1) es el destino refinadero
@@ -305,15 +305,15 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       aux_qq = []
       for h in range(model._nincrements):
         aux_qq.append(model._qincrements[h]/model._oincrements[h])
-      #print('Lo que me queda ',aux_qq)
-      #print('Original',model._oincrements)
+      ##print('Lo que me queda ',aux_qq)
+      ##print('Original',model._oincrements)
       #model.write('/content/drive/MyDrive/Colab Notebooks/Ejemplo'+str(t)+'.lp')
       #Se guardan los valores obtenidos
       u_array.append(u_bar_q_t)
       q_bar_array.append(bar_q)
       #Se quita el tonelaje extraido
       Q_k = Q_k - bar_q
-      print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
+      #print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
       #Se codifica la solucion y de la forma: bloque, destino, tiempo, valor de y
       codify_y(y_array,bar_y,t,model,instancia)
       #Se aumenta el periodo
@@ -324,9 +324,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       if t == model._nperiods:
         update_objective(model,instancia,aux_q_array,aux_v_array,model._nperiods,option)
     #Se calcula lo que vale la mina al tener todas las toneladas a partir de los valores u
-    print('Toneladas finales = ',Q_k)
+    #print('Toneladas finales = ',Q_k)
     V_Q_t = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
-    print('Valor de la mina = ',V_Q_t)
+    #print('Valor de la mina = ',V_Q_t)
     #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
     aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)]
     aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
@@ -343,8 +343,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     #Se revisa el criterio de parada
     vk0 = v_array[-2][0]
     vk1 = v_array[-1][0]
-    print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
-    print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
+    #print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
+    #print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if vk0>=vk1 and k> 2:
         #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
@@ -533,8 +533,11 @@ def Tablas(model,instancia,y):
 
 #######
 
-def write_tablas(Tabla,directory,i,Header=False, Index =False):
-  directory = directory[:-4] +"Tabla"+ str(i) + ".txt"
-  Tabla.to_csv(directory,header=Header,index=Index)
+def write_table(df,directory,Header=False, Index =False):
+  f = open(directory, "w")
+  df_string = df.to_string(header = Header, index = Index)
+  f.write(df_string)
+  f.close()
+  
 
     
