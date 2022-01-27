@@ -5,14 +5,16 @@ direcciones_pablo = [('../../Instancias/mines/chaiten_4phases_f0.prob','../../In
 #direcciones = direcciones_pablo
 #data = {0:["NDESTINATIONS", "NPERIODS", "DISCOUNT_RATE", "NCONSTRAINTS", "CONSTRAINT","CONSTRAINT","OBJECTIVE","OBJETIVO","INCREMENTS"],1:["2","20","0.1","2","0 4 P * L 2","1 4 P 1 L 1","0 5","1 6","2"]}
 #bloques= {0:[0,1,2,3,4],1:[0,0,1,1,2],2:[1,1,1,1,2],3:[1,1,1,1,2],4:[1,1,1,1,2],5:[1,1,-2,1,2],6:[1,1,-2,1,2],7:[1,1,1,1,2],8:[1,1,1,1,2],9:[0,0,1,1,2]}
-direcciones =  [direcciones_pablo[1]]
+direcciones =  [direcciones_pablo[0]]
 #direcciones = [(data,bloques)]
 #resultados           = []
 #resultados_flag_full = []
 
-flag = False
+prints = False
+soluciones_prev = False
+filtrado = True
 
-if flag:
+if prints:
   for valor in direcciones:
     model,info,instancia = reader(valor[0],valor[1])
     directory = valor[1]
@@ -43,7 +45,7 @@ if flag:
     #ax1.set_ylabel('V_0(k)')
     #fig1.savefig(directory_v[:-3]+'.png')
 
-else:
+elif soluciones_prev:
   for valor in direcciones:
     model,info,instancia = reader(valor[0],valor[1])
     directory1 = 'kd_kd_4phases_f0_default.TOPOSORT.ip.sol'
@@ -58,3 +60,7 @@ else:
     V_0_linear  = sum(u_linear[i] for i in range(len(u_linear)))
     print('Valor inicial estimado de la mina (integer): ',V_0_integer)
     print('Valor inicial estimado de la mina (linear): ',V_0_linear)
+
+elif filtrado:
+  valor = direcciones[0]
+  filtrar(valor[1])
