@@ -16,7 +16,15 @@ def initialize_model(info,instancia):
   model._nperiods      = int(info[info[0] == 'NPERIODS'][1])
   model._discount_rate = np.float64(1/(1+np.float64(info[info[0] == 'DISCOUNT_RATE'][1])))
   model._nconstraints  = int(info[info[0] == 'NCONSTRAINTS'][1])
-  model._nincrements   = len(instancia.iloc[:,-1].unique())
+  model._phases        = int(info[info[0] == 'PHASES'][1])
+  model._nphases       = len(instancia.iloc[:,model._phases].unique())
+  try:
+    model._benches   = int(info[info[0] == 'RBENCHES'][1])
+    model._rbenches  = True
+  else:
+    model._benches   = int(info[info[0] == 'BENCHES'][1])
+    model._rbenches  = False
+  model._nphases  = len(instancia.iloc[:,model._benches].unique())
   #Extraemos los datos de las restricciones
   aux_i           = info[info[0] == 'NCONSTRAINTS'].index[0] + 1
   aux_constraints = []
@@ -40,14 +48,21 @@ def initialize_model(info,instancia):
   model._qincrements = []
   model._oincrements = []
   model._blocks      = []
-  for i in range(model._nincrements):
-    aux_data = instancia[instancia.iloc[:,-1] == i]                                                 
-    aux_list = [aux_data[0].iloc[i] for i in range(len(aux_data))]
-    model._blocks += aux_list
-    model._bincrements.append(aux_list)
-    model._qincrements.append(aux_data[4].sum())                                            #ASUMIMOS QUE LA COLUMNA QUE INDICA EL TONELAJE DEL BLOQUE ES LA COLUMNA 5 (INDICE = 4)
-    model._oincrements.append(aux_data[4].sum())
-  
+  for i in range(model._nbenches):
+    aux_data = instancia[instancia.iloc[:,model._benches] == i]
+    b_phases = []
+    q_phases = []
+    o_phases = []
+    for p in range(model._nphases):
+      aux_data = aux_data[aux_data.iloc[:,model._phases] == p]
+      aux_list = [aux_data[0].iloc[j] for j in range(len(aux_data))] 
+      model._blocks += aux_list
+      b_phases.append(aux_list)
+      q_phases.append(aux_data[4].sum())                                            #ASUMIMOS QUE LA COLUMNA QUE INDICA EL TONELAJE DEL BLOQUE ES LA COLUMNA 5 (INDICE = 4)
+      o_phases.append(aux_data[4].sum())
+  model._bincrements.append(b_phases)
+  model._qincrements.append(q_phases)
+  model._oincrements.append(o_phases)
   return model
 
 #Funcion reader: Recibe un string con la direccion del archivo .prob y un string con la direccion del archivo .blocks. Tambien puede recibir diccionarios para generar los data frame
@@ -594,9 +609,9 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
   #Anadimos las variables y a los arreglos
   y  = model.addVars(len(instancia),model._ndestinations,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="y")
   #Anadimos las variables mu al arreglo
-  mu = model.addVars(model._nincrements, model._n_phases,obj = 0, vtype = GRB.BINARY, name = 'mu')
+  mu = model.addVars(model._nbenches, model._nphases,obj = 0, vtype = GRB.BINARY, name = 'mu')
   #Anadimos variables para los intervalos
-  x  = model.addVars(model._nincrements,model.n_phases,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
+  x  = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
   #Anadimos la funcion objetivo
   #Opcion 1: Regresion lineal
   if option == 'lr':
@@ -662,8 +677,8 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
   if flag_full:
     model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
   #Restricciones de precedencia
-  model.addConstrs((model._oincrements[p][i] * x[p][i] - mu[i][p]*model._qincrements[p][i] <= 0 for i in range(model._nincrements) for p in range(model._nphases)), 'p1')
-  model.addConstrs((model._oincrements[p][i] * x[p][i] - mu[i+1][p]*model._qincrements[p][i]>= 0 for i in range(model._nincrements-1) for p in range(model._nphases)), 'p2')
-  model.addConstrs((model._oincrements[p][i] * x[p][i] - mu[i][p+1]*model._qincrements[p][i]>= 0 for i in range(model._nincrements) for p in range(model._nphases-1)), 'p2')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p]*model._qincrements[p][i] <= 0 for i in range(model._nincrements) for p in range(model._nphases)), 'p1')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i+1][p]*model._qincrements[p][i]>= 0 for i in range(model._nincrements-1) for p in range(model._nphases)), 'p2')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p+1]*model._qincrements[p][i]>= 0 for i in range(model._nincrements) for p in range(model._nphases-1)), 'p2')
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
   model.addConstrs((x[i][p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for p in range(model._nphases) for b in model._bincrements[i][p]))
