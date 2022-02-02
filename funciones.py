@@ -102,9 +102,9 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
     #Se crea variable auxiliar
     q_var = model.addVar(lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
     #Se define la variable auxiliar como Q-q
-    model.addConstr(q_var + sum(x[i]*model._oincrements[i] for i in range(model._nincrements))  == Q,'aux_cons') 
+    model.addConstr(q_var + sum(x[i]*np.float64(model._oincrements[i]) for i in range(model._nincrements))  == Q,'aux_cons') 
     #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
+    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
     model.setPWLObj(q_var,qlist,vlist)
   #Opcion 3: Considerar variables para el tiempo futuro
@@ -130,9 +130,9 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
   for cons in model._infocons:
     aux = cons[3]
     if cons[1] == '*':
-      model.addConstr(sum(y[i,d] * instancia[cons[0]].iloc[i]  for i in model._blocks for d in range(model._ndestinations)) <= aux,"capacity_"+str(index))
+      model.addConstr(sum(y[i,d] * np.float64(instancia[cons[0]].iloc[i])  for i in model._blocks for d in range(model._ndestinations)) <= aux,"capacity_"+str(index))
       if flag_full:
-        model.addConstr(aux*lambda_var[index] + sum(y[i,d] * instancia[cons[0]].iloc[i]  for i in model._blocks for d in range(model._ndestinations)) >= aux ,"full_capacity_"+str(index))
+        model.addConstr(aux*lambda_var[index] + sum(y[i,d] * np.float64(instancia[cons[0]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)) >= aux ,"full_capacity_"+str(index))
     else:
       model.addConstr(sum(y[i,int(cons[1])] * instancia[cons[0]].iloc[i]  for i in model._blocks) <= aux,"capacity_"+str(index))
       if flag_full:
@@ -151,7 +151,7 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
 
 def get_varx(model):
   # Funcion para obtener la variable x del modelo
-  x = [var.x for var in model.getVars() if "x" in var.VarName]
+  x = [np.float64(var.x) for var in model.getVars() if "x" in var.VarName]
   return x[:model._nincrements]
 
 def update_increments(model,q):
@@ -160,6 +160,8 @@ def update_increments(model,q):
   while q>0 and index < model._nincrements:
     if model._qincrements[index] >= q:
       model._qincrements[index] = model._qincrements[index] - q
+      if pd.isna(model._qincrements[index]):
+        model._qincrements[index] = 0
       q = 0
     else:
       q = q - model._qincrements[index]
@@ -171,12 +173,12 @@ def get_vary(model,instancia):
   y = [[0,0] for i in range(len(instancia))]
   for b in model._blocks:
     for d in range(model._ndestinations):
-      y[b][d] = model.getVarByName('y['+str(b)+','+str(d)+']').x
+      y[b][d] = np.float64(model.getVarByName('y['+str(b)+','+str(d)+']').x)
   return y
 
 def get_u_obj(y,instancia,model):
   # Valor de la funcion u en el modelo
-  return sum(y[i][d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations))
+  return sum(y[i][d] *  np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations))
 
 def update_constraints(model,Q,x = None):
   aux_cons     = model.getConstrByName('aux_cons')
@@ -251,11 +253,26 @@ def codify_y(y0,y,t,model,instancia):
       if y[b][d] > 0:
         #Se codifica como bloque,destino,valor de y, incremento al que pertenece
         y0.append([b,d,t,y[b][d],increments[b]])
+        
+def copy_model(model):
+  nmodel = gp.Model()
+  nmodel._ndestinations = model._ndestinations
+  nmodel._nperiods      = model._nperiods
+  nmodel._discount_rate = model._discount_rate
+  nmodel._nconstraints  = model._nconstraints
+  nmodel._nincrements   = model._nincrements
+  nmodel._infocons      = model._infocons
+  nmodel._infoobj       = model._infoobj
+  nmodel._bincrements   = model._bincrements
+  nmodel._qincrements   = model._qincrements
+  nmodel._oincrements   = model._oincrements
+  nmodel._blocks        = model._blocks
+  return nmodel  
 
 #########################################################################################################################################################################################################################################
 #Funcion solver
 
-def original_solver(model,instancia,option = 'pwl',flag_full = False):
+def original_solver(model,instancia,option = 'pwl',flag_full = False,new_model = False):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
@@ -292,6 +309,22 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     print("Segundo ciclo")
     while Q_k > 0 and t <= model._nperiods:
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
+      print('Destinos ',model._ndestinations)
+      print('Periodos ',model._nperiods)
+      print('Tasa de descuento ',model._discount_rate)
+      print('Cantidad de restricciones ',model._nconstraints)
+      print('Cantidad de incrementos ',model._nincrements)
+      print('Informacion de restricciones ',model._infocons)
+      print('Informacion de funcion objetivo ',model._infoobj)
+      flag_blocks = False
+      for blocks_i in model._bincrements:
+        flag_blocks = pd.DataFrame(blocks_i).isnull().values.any()
+        if flag_blocks:
+          break
+      print('Bloques por incrementos ',flag_blocks)
+      print('Toneladas restantes ',pd.DataFrame(model._qincrements).isnull().values.any())
+      print('Toneladas originales ',pd.DataFrame(model._oincrements).isnull().values.any())
+      print('bloques a usar ',pd.DataFrame(model._blocks).isnull().values.any())
       print('Comienzo optimizacion')
       model.optimize()
       print('Optimizacion Terminada')
@@ -301,12 +334,16 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       bar_y = get_vary(model,instancia)
       bar_z = [bar_y[b][1] for b in range(len(bar_y))] #Suponemos que 1(el indice 1) es el destino refinadero
       bar_q =  sum(bar_x[i]*model._oincrements[i] for i in range(model._nincrements))
-      u_bar_q_t = get_u_obj(bar_y,instancia,model)
+      if np.linalg.norm(bar_x) >= 10**(-4):
+        u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
+      #print('Toneladas por incremento antes de la reduccion:', model._qincrements)
       update_increments(model,bar_q)
-      #Se guardan los valores obtenidos
-      u_array.append(u_bar_q_t)
-      q_bar_array.append(bar_q)
+      #print('Toneladas por incremento despues de la reduccion:', model._qincrements)
+      if np.linalg.norm(bar_x) >= 10**(-4):
+        #Se guardan los valores obtenidos
+        u_array.append(u_bar_q_t)
+        q_bar_array.append(bar_q)
       #Se quita el tonelaje extraido
       Q_k = Q_k - bar_q
       print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
@@ -321,13 +358,15 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
         update_objective(model,instancia,aux_q_array,aux_v_array,model._nperiods,option)
     #Se calcula lo que vale la mina al tener todas las toneladas a partir de los valores u
     print('Toneladas finales = ',Q_k)
-    V_Q_t = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
+    V_Q_t = sum(np.float64(u_array[i])*(model._discount_rate**i) for i in range(len(u_array)))
     print('Valor de la mina = ',V_Q_t)
     #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
     aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)]
     aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
     aux_v_array.append(0)
-    aux_q_array.append([0])
+    aux_q_array.append([0])   
+    print('Arreglo de V:', aux_v_array)
+    print('Arreglo de Q:', aux_q_array)
     #Se guardan los vectores de V y Q de la iteracion k
     v_array.append(aux_v_array)
     q_array.append(aux_q_array)
@@ -356,6 +395,11 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     update_constraints(model,Q_k)
     #Se cambia la funcion objetivo con respecto a la informacion obtenida
     update_objective(model,instancia,aux_q_array,aux_v_array,0,option)
+    if new_model:
+      model = copy_model(model)
+      create_model(model,instancia,Q_k,1,aux_v_array,aux_q_array,option, flag_full)
+    model.reset()
+    model.setParam('OutputFlag',1)
  
 
 #########################################################################################################################################################################################################################################
@@ -554,5 +598,42 @@ def last_increment(y0,instancia,model):
     for set in model._bincrements:
       model._blocks += set
   
+def eliminate_increment(model):
+  aux = model._bincrements[:]
+  aux = aux[:-1]
+  model._bincrements = aux[:]
+  model._blocks = []
+  model._nincrements = model._nincrements-1
+  for set in model._bincrements:
+    model._blocks += set  
   
-  
+def cut_mine(model):
+  #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
+  max_q = -1
+  for cons in model._infocons:
+    if cons[1] == '*':
+      max_q = cons[-1]
+  if max_q == -1:
+    return False
+  #Lo multiplicamos por la cantidad de periodos
+  max_nq     = max_q*model._nperiods
+  #Revisamos hasta que incremento sera posible extraer toneladas
+  index      = 0
+  while index<model._nincrements:
+    if max_nq >= model._oincrements[index]:
+      max_nq -= model._oincrements[index]
+      index  += 1
+    else:
+      break
+  #Si no es posible extraer toda la mina, se acota
+  if index < model._nincrements-1:
+    aux = model._bincrements[:]
+    aux = aux[:index+1]
+    model._bincrements = aux[:]
+    model._blocks = []
+    model._nincrements = index+1
+    for set in model._bincrements:
+      model._blocks += set
+    return True
+  else:
+    return False
