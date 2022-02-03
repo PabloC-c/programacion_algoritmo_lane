@@ -33,7 +33,8 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = False)
+  flag =True
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag)
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,pincrements = check_factibility(instancia,model,y)
@@ -44,5 +45,13 @@ for valor in direcciones:
   write_table(df3,directory_table3)
   writer_v_k(directory_v,v_array)
   writer_times(directory_times,times)
+  if flag==True:
+    soly = postoptimizacion(model,instancia,xf,yf)
+    print("mejor postoptimizacion : ", soly != yf)
+    #if sol != yf:
+    original = get_u_obj(yf,instancia,model)
+    post = get_u_obj(soly,instancia,model)
+    print("F. Obj. Original : ", original)
+    print("F. Obj. Postopt : ", post) 
   print('Siguiente problema')
   

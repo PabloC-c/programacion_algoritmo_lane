@@ -637,3 +637,26 @@ def cut_mine(model):
     return True
   else:
     return False
+    
+##########
+
+def postoptimizacion(model,instancia,x,y):  
+  soly = y.copy()
+  ultimo_incremento = model._nincrements
+  var = True
+  while ultimo_incremento > 1 and var:
+    for i in range(len(x)-1,-1,-1):
+      if x[i]!=0:
+        ultimo_incremento =i
+        break
+    if sum(np.float64(instancia[model._infoobj[d]].iloc[b]) for b in model._bincrements[ultimo_incremento] for d in range(model._ndestinations)) < 0: 
+      for b in model._bincrements[ultimo_incremento]:
+        for d in range(model._ndestinations):
+          sol[b][d]=0
+      x[ultimo_incremento]=0
+    else: 
+      var = False
+  return soly
+          
+        
+  

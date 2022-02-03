@@ -21,10 +21,10 @@ def initialize_model(info,instancia):
   try:
     model._benches   = int(info[info[0] == 'RBENCHES'][1])
     model._rbenches  = True
-  else:
+  except:
     model._benches   = int(info[info[0] == 'BENCHES'][1])
     model._rbenches  = False
-  model._nphases  = len(instancia.iloc[:,model._benches].unique())
+  model._nbenches  = len(instancia.iloc[:,model._benches].unique())
   #Extraemos los datos de las restricciones
   aux_i           = info[info[0] == 'NCONSTRAINTS'].index[0] + 1
   aux_constraints = []
@@ -50,9 +50,9 @@ def initialize_model(info,instancia):
   model._blocks      = []
   for i in range(model._nbenches):
     aux_data = instancia[instancia.iloc[:,model._benches] == i]
-    b_phases = [[] for j in range(model._nbenches)]
-    q_phases = [0 for j in range(model._nbenches)]
-    o_phases = [0 for j in range(model._nbenches)]
+    b_phases = [[] for j in range(model._nphases)]
+    q_phases = [0 for j in range(model._nphases)]
+    o_phases = [0 for j in range(model._nphases)]
     for p in range(model._nphases):
       aux_data = aux_data[aux_data.iloc[:,model._phases] == p]
       aux_list = [aux_data[0].iloc[j] for j in range(len(aux_data))] 
@@ -60,9 +60,9 @@ def initialize_model(info,instancia):
       b_phases[p] = aux_list
       q_phases[p] = aux_data[4].sum()                                            #ASUMIMOS QUE LA COLUMNA QUE INDICA EL TONELAJE DEL BLOQUE ES LA COLUMNA 5 (INDICE = 4)
       o_phases[p] = aux_data[4].sum()
-  model._bincrements.append(b_phases)
-  model._qincrements.append(q_phases)
-  model._oincrements.append(o_phases)
+    model._bincrements.append(b_phases)
+    model._qincrements.append(q_phases)
+    model._oincrements.append(o_phases)
   return model
 
 #Funcion reader: Recibe un string con la direccion del archivo .prob y un string con la direccion del archivo .blocks. Tambien puede recibir diccionarios para generar los data frame
@@ -113,9 +113,9 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     vlist = vlist[idx]
     vlist = vlist*model._discount_rate
     #Se crea variable auxiliar
-    q_var = model.addVars(model.n_phases,lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
+    q_var = model.addVar(lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
     #Se define la variable auxiliar como Q-q
-    model.addConstrs((q_var + sum(x[i,p]*model._oincrements[i,p] for i in range(model._nbenches) for p in range(model._nphases)) == Q ,'aux_cons')
+    model.addConstr(q_var + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases)) == Q ,'aux_cons')
     #Se crea la funcion objetivo
     model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
@@ -154,11 +154,11 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
   if flag_full:
     model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
   #Restricciones de precedencia
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases)), 'p1')
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i-1][p]*model._qincrements[i][p]>= 0 for i in range(1,nbenches) for p in range(model._nphases)), 'p2_benches')
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1)), 'p2_phases')
-  #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
-  model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._bincrements[i][p]))
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases)), 'p1')
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i-1,p]*model._qincrements[i][p]>= 0 for i in range(1,model._nbenches) for p in range(model._nphases)), 'p2_benches')
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1)), 'p2_phases')
+  #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i
+  model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._blocks))
 
 #########################################################################################################################################################################################################################################
 #Funciones auxiliares
@@ -209,7 +209,7 @@ def update_constraints(model,Q,x = None):
     aux = [var for var in model.getVars() if 'mu['+str(i) in var.VarName]
     mu.append(aux)
   for i in range(model._nbenches):
-    for p in range(model._phases):
+    for p in range(model._nphases):
       p1 = model.getConstrByName('p1['+str(i)+','+str(p)+']')
       model.chgCoeff(p1, mu[i][p] , -model._qincrements[i][p])
       if i > 0:
@@ -271,9 +271,10 @@ def update_objective(model,instancia,qlist,vlist,t,option = 'pwl'):
 def incrementens_p_block(model,instancia):
   increments = [-1 for i in range(len(instancia))]
   for i in range(len(model._bincrements)):
-    blocks = model._bincrements[i]
-    for b in blocks:
-      increments[b] = i
+    for p in range(len(model._bincrements[i])):
+      blocks = model._bincrements[i][p]
+      for b in blocks:
+        increments[b] = [i,p] 
   return increments
 
 def codify_y(y0,y,t,model,instancia):
@@ -291,13 +292,13 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
-  Q0  = sum(model._oincrements[i] for i in range(model._nincrements))
+  Q0  = sum(model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases))
   Q_k = Q0
   aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
   aux_v_array  = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
   print('Creacion modelo')  
-  create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full)
+  create_model2(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full)
   print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
   v_array = [[0 for i in range(model._nperiods+1)]]
@@ -334,10 +335,10 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       x_array.append(bar_x)
       bar_y = get_vary(model,instancia)
       bar_z = [bar_y[b][1] for b in range(len(bar_y))] #Suponemos que 1(el indice 1) es el destino refinadero
-      bar_q =  sum(bar_x[i]*model._oincrements[i] for i in range(model._nincrements))
+      bar_q =  sum(bar_x[i][p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases) )
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
-      update_increments(model,bar_q)
+      update_increments(model,bar_x)
       #Se guardan los valores obtenidos
       u_array.append(u_bar_q_t)
       q_bar_array.append(bar_q)
@@ -391,7 +392,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
     print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
-    if vk0>=vk1 and k> 10:
+    if vk0>=vk1 and k> 2:
         #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
         return y0_array,x0_array,times_k,q_array,v_array
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
