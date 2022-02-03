@@ -50,16 +50,16 @@ def initialize_model(info,instancia):
   model._blocks      = []
   for i in range(model._nbenches):
     aux_data = instancia[instancia.iloc[:,model._benches] == i]
-    b_phases = []
-    q_phases = []
-    o_phases = []
+    b_phases = [[] for j in range(model._nbenches)]
+    q_phases = [0 for j in range(model._nbenches)]
+    o_phases = [0 for j in range(model._nbenches)]
     for p in range(model._nphases):
       aux_data = aux_data[aux_data.iloc[:,model._phases] == p]
       aux_list = [aux_data[0].iloc[j] for j in range(len(aux_data))] 
       model._blocks += aux_list
-      b_phases.append(aux_list)
-      q_phases.append(aux_data[4].sum())                                            #ASUMIMOS QUE LA COLUMNA QUE INDICA EL TONELAJE DEL BLOQUE ES LA COLUMNA 5 (INDICE = 4)
-      o_phases.append(aux_data[4].sum())
+      b_phases[p] = aux_list
+      q_phases[p] = aux_data[4].sum()                                            #ASUMIMOS QUE LA COLUMNA QUE INDICA EL TONELAJE DEL BLOQUE ES LA COLUMNA 5 (INDICE = 4)
+      o_phases[p] = aux_data[4].sum()
   model._bincrements.append(b_phases)
   model._qincrements.append(q_phases)
   model._oincrements.append(o_phases)
@@ -82,14 +82,14 @@ def reader(d1,d2):
 #########################################################################################################################################################################################################################################
 # Funcion que crea el modelo
 
-def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = False, p = None, q = None):
+def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = False, p = None, q = None):
   model._flag_full = flag_full
   #Anadimos las variables y a los arreglos
   y  = model.addVars(len(instancia),model._ndestinations,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="y")
   #Anadimos las variables mu al arreglo
-  mu = model.addVars(model._nincrements,obj = 0, vtype = GRB.BINARY, name = 'mu')
+  mu = model.addVars(model._nbenches, model._nphases,obj = 0, vtype = GRB.BINARY, name = 'mu')
   #Anadimos variables para los intervalos
-  x  = model.addVars(model._nincrements,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
+  x  = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
   #Anadimos la funcion objetivo
   #Opcion 1: Regresion lineal
   if option == 'lr':
@@ -98,9 +98,9 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
     #Se extraen las constantes 
     a0 = regressor.coef_[0]
     #Se crea variable auxiliar
-    q_var = model.addVar(lb=0,vtype= GRB.CONTINUOUS,name="q_var")
+    q_var = model.addVars(model.n_phases,lb=0,vtype= GRB.CONTINUOUS,name="q_var")
     #Se define la variable auxiliar como Q-q
-    model.addConstr(q_var + sum(x[i]*model._oincrements[i] for i in range(model._nincrements))  == Q,'aux_cons')    
+    model.addConstrs((q_var[p] + sum(x[i][p]*model._oincrements[i][p]for i in range(model._nincrements))   == Q[p] for p in range(model.n_phases)),'aux_cons')    
     #Se crea la funcion objetivo
     model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)) + model._discount_rate*a0*(q_var),GRB.MAXIMIZE)
   #Opcion 2: Piecewise Linear de Gurobi
@@ -113,11 +113,11 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
     vlist = vlist[idx]
     vlist = vlist*model._discount_rate
     #Se crea variable auxiliar
-    q_var = model.addVar(lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
+    q_var = model.addVars(model.n_phases,lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
     #Se define la variable auxiliar como Q-q
-    model.addConstr(q_var + sum(x[i]*model._oincrements[i] for i in range(model._nincrements))  == Q,'aux_cons') 
+    model.addConstrs((q_var + sum(x[i,p]*model._oincrements[i,p] for i in range(model._nbenches) for p in range(model._nphases)) == Q ,'aux_cons')
     #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
+    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
     model.setPWLObj(q_var,qlist,vlist)
   #Opcion 3: Considerar variables para el tiempo futuro
@@ -154,31 +154,31 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
   if flag_full:
     model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
   #Restricciones de precedencia
-  model.addConstrs((model._oincrements[i] * x[i] - mu[i]*model._qincrements[i] <= 0 for i in range(model._nincrements)), 'p1')
-  model.addConstrs((model._oincrements[i] * x[i] - mu[i+1]*model._qincrements[i]>= 0 for i in range(model._nincrements-1)), 'p2')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases)), 'p1')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i-1][p]*model._qincrements[i][p]>= 0 for i in range(1,nbenches) for p in range(model._nphases)), 'p2_benches')
+  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1)), 'p2_phases')
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
-  model.addConstrs((x[i] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for b in model._bincrements[i])) 
+  model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._bincrements[i][p]))
 
 #########################################################################################################################################################################################################################################
 #Funciones auxiliares
 
 def get_varx(model):
-  # Funcion para obtener la variable x del modelo
-  x = [var.x for var in model.getVars() if "x" in var.VarName]
-  return x[:model._nincrements]
+  # Funcion para obtener la variablexy del modelo
+  phases_0 = [0 for p in range(model._nphases)]
+  x = [ phases_0 for i in range(model._nbenches)]
+  for i in range(model._nbenches):
+    for p in range(model._nphases):
+      x[i][p] = model.getVarByName('x['+str(i)+','+str(p)+']').x
+  return x
 
-def update_increments(model,q):
+def update_increments(model,x):
   # Cambia las toneladas de cada incremento luego de extraerlas
-  index = 0
-  while q>0 and index < model._nincrements:
-    if model._qincrements[index] >= q:
-      model._qincrements[index] = model._qincrements[index] - q
-      q = 0
-    else:
-      q = q - model._qincrements[index]
-      model._qincrements[index] = 0
-    index += 1
-          
+  for i in range(model._nbenches):
+    for p in range(model._nphases):
+      model._qincrements[i][p] -= x[i][p]*model._oincrements[i][p]
+  model.update()
+  
 def get_vary(model,instancia):
   # Funcion para obtener la variable y del modelo
   y = [[0,0] for i in range(len(instancia))]
@@ -204,13 +204,20 @@ def get_i_obj(y,x,instancia,model,t):
 def update_constraints(model,Q,x = None):
   aux_cons     = model.getConstrByName('aux_cons')
   aux_cons.rhs = Q
-  mu = [var for var in model.getVars() if "mu" in var.VarName]
-  for i in range(model._nincrements):
-    p1 = model.getConstrByName('p1['+str(i)+']')
-    model.chgCoeff(p1, mu[i] , -model._qincrements[i])
-    if i < model._nincrements - 1:
-      p2 = model.getConstrByName('p2['+str(i)+']')
-      model.chgCoeff(p2, mu[i+1] , -model._qincrements[i])
+  mu = [] 
+  for i in range(model._nbenches):
+    aux = [var for var in model.getVars() if 'mu['+str(i) in var.VarName]
+    mu.append(aux)
+  for i in range(model._nbenches):
+    for p in range(model._phases):
+      p1 = model.getConstrByName('p1['+str(i)+','+str(p)+']')
+      model.chgCoeff(p1, mu[i][p] , -model._qincrements[i][p])
+      if i > 0:
+        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
+        model.chgCoeff(p2, mu[i-1][p] , -model._qincrements[i][p])
+      if p<model._nphases-1:
+        p2 = model.getConstrByName('p2_phases['+str(i)+','+str(p)+']')
+        model.chgCoeff(p2, mu[i][p+1] , -model._qincrements[i][p])
   if model._flag_full:
     lambda_var = [var for var in model.getVars() if "lambda_var" in var.VarName]
     index = 0
@@ -237,9 +244,9 @@ def update_constraints(model,Q,x = None):
   
 def reset_qincrements(model):
   aux_list = []
-  for i in range(model._nincrements):
-    aux_list.append(model._oincrements[i])
-  model._qincrements = aux_list[:]
+  for i in range(model._nbenches):
+    aux_list.append([model._oincrements[i][p] for p in range(model._nphases)])
+  model._qincrements = aux_list
   model.update()
 
 def update_objective(model,instancia,qlist,vlist,t,option = 'pwl'):
@@ -331,9 +338,6 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
       update_increments(model,bar_q)
-      f= get_i_obj(bar_x,bar_y,instancia,model,t)
-      a= a + f[0]
-      b= b + f[1]
       #Se guardan los valores obtenidos
       u_array.append(u_bar_q_t)
       q_bar_array.append(bar_q)
@@ -370,9 +374,6 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
        # for j in range(0,i):
         #  qaux= qaux - q_bar_array[j]
         #aux_q_array.append( [qaux])
-        
-      
-       
     aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)] + b
     aux_v_array.append(0)
     aux_q_array.append([0])
@@ -604,81 +605,3 @@ def last_increment(y0,instancia,model):
   return
  ########################################################################################################################################################################################################################################
  
-def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = False, p = None, q = None):
-  model._flag_full = flag_full
-  #Anadimos las variables y a los arreglos
-  y  = model.addVars(len(instancia),model._ndestinations,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="y")
-  #Anadimos las variables mu al arreglo
-  mu = model.addVars(model._nbenches, model._nphases,obj = 0, vtype = GRB.BINARY, name = 'mu')
-  #Anadimos variables para los intervalos
-  x  = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
-  #Anadimos la funcion objetivo
-  #Opcion 1: Regresion lineal
-  if option == 'lr':
-    #Se crea y ajusta el regresor lineal
-    regressor = LinearRegression().fit(qlist, vlist)
-    #Se extraen las constantes 
-    a0 = regressor.coef_[0]
-    #Se crea variable auxiliar
-    q_var = model.addVars(model.n_phases,lb=0,vtype= GRB.CONTINUOUS,name="q_var")
-    #Se define la variable auxiliar como Q-q
-    model.addConstrs((q_var[p] + sum(x[i][p]*model._oincrements[i][p]for i in range(model._nincrements))   == Q[p] for p in range(model.n_phases)),'aux_cons')    
-    #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)) + model._discount_rate*a0*(q_var),GRB.MAXIMIZE)
-  #Opcion 2: Piecewise Linear de Gurobi
-  if option == 'pwl':
-    #Se ajustan los datos de input
-    qlist = np.array([(qlist[i])[0] for i in range(len(qlist))])
-    vlist = np.array(vlist)
-    idx = np.argsort(qlist)
-    qlist = qlist[idx]
-    vlist = vlist[idx]
-    vlist = vlist*model._discount_rate
-    #Se crea variable auxiliar
-    q_var = model.addVars(model.n_phases,lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
-    #Se define la variable auxiliar como Q-q
-    model.addConstrs((q_var[p] + sum(x[i][p]*model._oincrements[i][p] for i in range(model._nincrements))   == Q[p] for p in range(model.n_phases)),'aux_cons')
-    #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
-    #Se anade la funcion lineal por partes
-    for i in range(model._nphases):
-      model.setPWLObj(q_var,qlist[i],vlist[i])
-  #Opcion 3: Considerar variables para el tiempo futuro
-  if option == 'hat':
-    #Anadimos la variables para el futuro x y mu gorro
-    x_hat  = model.addVars(model._nincrements,model._nperiods-t,lb=0,ub=1,vtype=GRB.CONTINUOUS,name= "x_hat")
-    mu_hat = model.addVars(model._nincrements,model._nperiods-t,vtype=GRB.BINARY,name= "mu_hat")
-    #Se crea la funcion objetivo
-    #model.setObjetive(sum(y[i][d] * instancia[model._infoobj[d]].iloc[i] for i in instancia[0] for d in range(model._ndestinations)) + sum( ((model._discount_rate)**t)* x[i]*p[i] for t in range(model._nperiods) for i in model._nincrements ,GRB.MAXIMIZE))
-    #Restriccion de extraccion maxima; no se puede extraer mas del 100% de un incremento
-    model.addConstrs(x[i] + sum(x_hat[i,j] for j in range(model._nperiods-t)) <= 1 for i in range(model._nincrements))
-    #Restriccion de precedencia
-    model.addConstrs(x_hat[i,j] <= mu_hat[i,j] for i in range(model._nincrements) for j in range(model._nperiods-t))
-    model.addConstrs((mu_hat[i,j] <= sum( x_hat[i-1,k] for k in range(0,j)) + x[i-1] for i in range(1,model._nincrements) for j in range(model._nperiods-t)))
-    aux = sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations))
-    aux += sum(model._discount_rate**t *sum(p[i]*x_hat[i,j] for i in range(model._nincrements)) for j in range(model._nperiods-t))
-    model.setObjective(aux, GRB.MAXIMIZE)
-  #Anadimos las restricciones
-  #Restricciones de capacidad
-  if flag_full:
-    lambda_var = model.addVars(len(model._infocons),vtype = GRB.BINARY,name = "lambda_var")
-  index = 0
-  for cons in model._infocons:
-    aux = cons[3]
-    if cons[1] == '*':
-      model.addConstr(sum(y[i,d] * instancia[cons[0]].iloc[i]  for i in model._blocks for d in range(model._ndestinations)) <= aux,"capacity_"+str(index))
-      if flag_full:
-        model.addConstr(aux*lambda_var[index] + sum(y[i,d] * instancia[cons[0]].iloc[i]  for i in model._blocks for d in range(model._ndestinations)) >= aux ,"full_capacity_"+str(index))
-    else:
-      model.addConstr(sum(y[i,int(cons[1])] * instancia[cons[0]].iloc[i]  for i in model._blocks) <= aux,"capacity_"+str(index))
-      if flag_full:
-        model.addConstr(aux*lambda_var[index] + sum(y[i,int(cons[1])] * instancia[cons[0]].iloc[i]  for i in model._blocks) >= aux,"full_capacity_"+str(index))
-    index += 1
-  if flag_full:
-    model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
-  #Restricciones de precedencia
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p]*model._qincrements[p][i] <= 0 for i in range(model._nincrements) for p in range(model._nphases)), 'p1')
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i+1][p]*model._qincrements[p][i]>= 0 for i in range(model._nincrements-1) for p in range(model._nphases)), 'p2')
-  model.addConstrs((model._oincrements[i][p] * x[i][p] - mu[i][p+1]*model._qincrements[p][i]>= 0 for i in range(model._nincrements) for p in range(model._nphases-1)), 'p2')
-  #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i.
-  model.addConstrs((x[i][p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nincrements) for p in range(model._nphases) for b in model._bincrements[i][p]))
