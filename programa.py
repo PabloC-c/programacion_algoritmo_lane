@@ -46,10 +46,10 @@ for valor in direcciones:
   writer_v_k(directory_v,v_array)
   writer_times(directory_times,times)
   if flag==True:
+    original = sum(calculate_u(pd.DataFrame(yf),model,instancia))
     soly = postoptimizacion(model,instancia,xf,yf)
     #print("mejor postoptimizacion : ", soly[0] != yf)
     #if sol != yf:
-    original = sum(calculate_u(pd.DataFrame(yf),model,instancia))
     print("F. Obj. Original : ", original)
     print("F. Obj. Postopt : ", soly[1]) 
   print('Siguiente problema')

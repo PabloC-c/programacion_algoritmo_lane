@@ -659,19 +659,24 @@ def postoptimizacion(model,instancia,x,y):
   soly =pd.DataFrame(y)
   ultimo_incremento = model._nincrements-1
   var = True
-  while ultimo_incremento > 1 and var:
+  while ultimo_incremento > 0 and var:
     for i in range(len(x)-1,-1,-1):
       if x[i]!=0:
         ultimo_incremento =i
         break
-    if sum(np.float64(instancia[model._infoobj[d]].iloc[b]) for b in model._bincrements[ultimo_incremento] for d in range(model._ndestinations)) <= 0: 
-       for q in range(len(soly)):
-         if soly[4].iloc[q] == ultimo_incremento:
-           soly[3].iloc[q]=0
-       x[ultimo_incremento]=0
+    sum=0
+    for b in model._bincrements[ultimo_incremento]:
+      for d in range(model._ndestinations):
+        sum = sum+ instancia[model._infoobj[d]].iloc[b]
+    if sum<0:
+      for q in range(len(soly)):
+        if soly.at[q,4] == ultimo_incremento:
+           soly.at[q,3]=0
+      x[ultimo_incremento]=0
     else: 
       var = False
-    valor_obj= sum(calculate_u(soly,model,instancia))
+  a= np.array(calculate_u(soly,model,instancia))
+  valor_obj= np.sum(a)
   return [soly,valor_obj]
           
         
