@@ -24,7 +24,9 @@ def initialize_model(info,instancia):
   except:
     model._benches   = int(info[info[0] == 'BENCHES'][1])
     model._rbenches  = False
-  model._nbenches  = len(instancia.iloc[:,model._benches].unique())
+  model._nbenches  = len(instancia.iloc[:,model._benches].unique())-1
+  model._bench_min = min(instancia.iloc[:,model._benches].unique())
+  model._bench_max = max(instancia.iloc[:,model._benches].unique())
   #Extraemos los datos de las restricciones
   aux_i           = info[info[0] == 'NCONSTRAINTS'].index[0] + 1
   aux_constraints = []
@@ -48,13 +50,13 @@ def initialize_model(info,instancia):
   model._qincrements = []
   model._oincrements = []
   model._blocks      = []
-  for i in range(model._nbenches):
-    aux_data = instancia[instancia.iloc[:,model._benches] == i]
-    b_phases = [[] for j in range(model._nphases)]
-    q_phases = [0 for j in range(model._nphases)]
-    o_phases = [0 for j in range(model._nphases)]
+  for i in range(model._bench_min,model._bench_max+1):
+    data_bench = instancia[instancia[model._benches] == i]
+    b_phases   = [[] for j in range(model._nphases)]
+    q_phases   = [0 for j in range(model._nphases)]
+    o_phases   = [0 for j in range(model._nphases)]
     for p in range(model._nphases):
-      aux_data = aux_data[aux_data.iloc[:,model._phases] == p]
+      aux_data = data_bench[data_bench[model._phases] == p]
       aux_list = [aux_data[0].iloc[j] for j in range(len(aux_data))] 
       model._blocks += aux_list
       b_phases[p] = aux_list
@@ -155,11 +157,15 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
   #Restricciones de precedencia
   model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases)), 'p1')
-  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i-1,p]*model._qincrements[i][p]>= 0 for i in range(1,model._nbenches) for p in range(model._nphases)), 'p2_benches')
   model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1)), 'p2_phases')
+  if model._rbenches:
+    model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i-1,p]*model._qincrements[i][p]>= 0 for i in range(1,model._nbenches) for p in range(model._nphases)), 'p2_benches')
+  else:
+    model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i+1,p]*model._qincrements[i][p]>= 0 for i in range(model._nbenches-1) for p in range(model._nphases)), 'p2_benches')
+    
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i
-  model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._blocks))
-
+  model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._bincrements[i][p]))
+  model.write('Ejemplo.lp')
 #########################################################################################################################################################################################################################################
 #Funciones auxiliares
 
@@ -212,12 +218,15 @@ def update_constraints(model,Q,x = None):
     for p in range(model._nphases):
       p1 = model.getConstrByName('p1['+str(i)+','+str(p)+']')
       model.chgCoeff(p1, mu[i][p] , -model._qincrements[i][p])
-      if i > 0:
-        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
-        model.chgCoeff(p2, mu[i-1][p] , -model._qincrements[i][p])
       if p<model._nphases-1:
         p2 = model.getConstrByName('p2_phases['+str(i)+','+str(p)+']')
         model.chgCoeff(p2, mu[i][p+1] , -model._qincrements[i][p])
+      if model._rbenches and i>0:
+        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
+        model.chgCoeff(p2, mu[i-1][p] , -model._qincrements[i][p])
+      elif not model._rbenches and i<model._nbenches-1:
+        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
+        model.chgCoeff(p2, mu[i+1][p] , -model._qincrements[i][p])
   if model._flag_full:
     lambda_var = [var for var in model.getVars() if "lambda_var" in var.VarName]
     index = 0
@@ -254,8 +263,6 @@ def update_objective(model,instancia,qlist,vlist,t,option = 'pwl'):
     #Se ajustan los datos de input
     qlist = np.array([(qlist[i])[0] for i in range(len(qlist))])
     vlist = np.array(vlist)
-    print(qlist)
-    print(vlist)
     idx = np.argsort(qlist)
     qlist = qlist[idx]
     vlist = vlist[idx]
@@ -332,8 +339,10 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
+      print([var.x for var in model.getVars() if 'x' in var.VarName])
       x_array.append(bar_x)
       bar_y = get_vary(model,instancia)
+      print([var.x for var in model.getVars() if 'y' in var.VarName])
       bar_z = [bar_y[b][1] for b in range(len(bar_y))] #Suponemos que 1(el indice 1) es el destino refinadero
       bar_q =  sum(bar_x[i][p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases) )
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
@@ -407,7 +416,6 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
     #Se cambia la funcion objetivo con respecto a la informacion obtenida
     update_objective(model,instancia,aux_q_array,aux_v_array,0,option)
  
-
 #########################################################################################################################################################################################################################################
 #Funcion que escribe la solucion y en un archivo
 def writer_y(directory,y):
