@@ -452,6 +452,7 @@ def calculate_u(y,model,instancia):
 #########################################################################################################################################################################################################################################
 
 def check_factibility(instancia,model,y):
+  binary_x = True
   tol = 10**(-3)
   tf = max(y[2])
   t0 = min(y[2])
@@ -459,8 +460,15 @@ def check_factibility(instancia,model,y):
     tf = tf + 1
   output = []
   p_increments = [0 for i in range(model._nincrements)]
+  ncol = y.shape[1]
+  if ncol<5:
+    b_increments = []
+    for b in y[0]:
+      increment = instancia.iloc[int(b),-1]
+      b_increments.append(increment)
+    y[4] = b_increments
   for i in range(int(tf)):
-    problem = [str(i)]
+    problem = [i]
     if t0 == 1:
       t = i+1
     else:
@@ -487,19 +495,26 @@ def check_factibility(instancia,model,y):
         b0     = y_j[0].iloc[0]
         y_0    = y_j[y_j[0] == b0]
         prom_0 = y_0[3].sum()
+        if prom_0 < 1 - tol:
+          binary_x = False
         p_increments[j] += prom_0
         b_list = y_j[0].unique()
         for b in b_list:
           if b != b0:
             y_aux = y_j[y_j[0] == b]
             prom  = y_aux[3].sum()
+            if prom < 1 - tol:
+              binary_x = False
             if prom - prom_0 > tol or prom - prom_0 < -tol:
-              problem.append('Bloque no consistente')
+              problem.append('Bloque '+str(b)+' no consistente con su incremento '+str(j))
       
-    for j in range(1,model._nincrements):
-        if p_increments[j] > tol:
-          if p_increments[j-1] < 1-tol:
-            problem.append('Precedencia entre incrementos')    
+    for j in range(0,model._nincrements):
+        if p_increments[j] > 1 + 2*tol:
+          problem.append('Incremento '+str(j)+' no consistente') 
+        if j > 0:
+          if p_increments[j] > tol:
+            if p_increments[j-1] < 1-tol:
+              problem.append('Precedencia entre incrementos '+str(j-1)+' y '+str(j-1))    
     output.append(problem)
   
   feasible = True
@@ -507,7 +522,7 @@ def check_factibility(instancia,model,y):
     if len(output[i]) > 1:
        feasible = False
        break
-  return feasible,output,p_increments  
+  return feasible,output,p_increments,binary_x
   
   #hacer tablas:
   #Incremenntos: Tabla lo que saco por incremento por periodo

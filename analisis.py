@@ -5,13 +5,13 @@ direcciones_pablo = [('../../Instancias/mines/chaiten_4phases_f0.prob','../../In
 #direcciones = direcciones_pablo
 #data = {0:["NDESTINATIONS", "NPERIODS", "DISCOUNT_RATE", "NCONSTRAINTS", "CONSTRAINT","CONSTRAINT","OBJECTIVE","OBJETIVO","INCREMENTS"],1:["2","20","0.1","2","0 4 P * L 2","1 4 P 1 L 1","0 5","1 6","2"]}
 #bloques= {0:[0,1,2,3,4],1:[0,0,1,1,2],2:[1,1,1,1,2],3:[1,1,1,1,2],4:[1,1,1,1,2],5:[1,1,-2,1,2],6:[1,1,-2,1,2],7:[1,1,1,1,2],8:[1,1,1,1,2],9:[0,0,1,1,2]}
-direcciones =  [direcciones_pablo[3]]
+direcciones =  [direcciones_pablo[2]]
 #direcciones = [(data,bloques)]
 #resultados           = []
 #resultados_flag_full = []
 
-prints = True
-soluciones_prev = False
+prints = False
+soluciones_prev = True
 filtrado = False
 
 if prints:
@@ -46,26 +46,17 @@ if prints:
 elif soluciones_prev:
   for valor in direcciones:
     model,info,instancia = reader(valor[0],valor[1])
-    directory1 = 'palomo_palomo25_4phases_f0_default.TOPOSORT.ip.sol'
+    directory1 = 'marvin_marvin_4phases_f0_default.TOPOSORT.ip.sol'
     #directory2 = 'palomo_palomo25_4phases_f0_default.BZ.lp.sol'
     directory1 = '../../Instancias/sols/'+directory1 
     #directory2 = '../../Instancias/sols/'+directory2
     y_integer = read_y(directory1)
-    arreglo   = []
-    for b in y_integer[0]:
-      i_aux = int(instancia.iloc[int(b),-1])
-      if not i_aux in arreglo:
-        arreglo.append(i_aux)
-    arreglo_real = np.arange(0,model._nincrements,dtype = int)
-    arreglo = np.array(arreglo)
-    idx = np.argsort(arreglo)
-    arreglo = arreglo[idx]
-    n = len(arreglo)
-    for i in range(n):
-      if arreglo[i] == arreglo_real[i]:
-        print('Problema, orlando:',arreglo[i],', Real',arreglo_real[i])  
+    feasible,output,p_increments,binary_x = check_factibility(instancia,model,y_integer)
+    print('Factible: ',feasible)
+    print('Violaciones: ',output)
+    print('x binario:' ,binary_x)
     #y_linear  = read_y(directory2)
-    u_integer = calculate_u(y_integer,model,instancia)
+    #u_integer = calculate_u(y_integer,model,instancia)
     #u_linear  = calculate_u(y_linear,model,instancia)
     #V_0_integer = sum(u_integer[i] for i in range(len(u_integer)))
     #V_0_linear  = sum(u_linear[i] for i in range(len(u_linear)))
