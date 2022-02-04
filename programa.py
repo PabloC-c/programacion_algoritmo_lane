@@ -47,11 +47,10 @@ for valor in direcciones:
   writer_times(directory_times,times)
   if flag==True:
     soly = postoptimizacion(model,instancia,xf,yf)
-    print("mejor postoptimizacion : ", soly != yf)
+    #print("mejor postoptimizacion : ", soly[0] != yf)
     #if sol != yf:
-    original = get_u_obj(yf,instancia,model)
-    post = get_u_obj(soly,instancia,model)
+    original = sum(calculate_u(pd.DataFrame(yf),model,instancia))
     print("F. Obj. Original : ", original)
-    print("F. Obj. Postopt : ", post) 
+    print("F. Obj. Postopt : ", soly[1]) 
   print('Siguiente problema')
   

@@ -381,7 +381,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,new_model =
     print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
     print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
-    if vk0>=vk1 and k> 2:
+    if vk0>vk1 and k> 2:
         #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
         return y0_array,x0_array,times_k,q_array,v_array
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
@@ -641,22 +641,23 @@ def cut_mine(model):
 ##########
 
 def postoptimizacion(model,instancia,x,y):  
-  soly = y.copy()
-  ultimo_incremento = model._nincrements
+  soly =pd.DataFrame(y)
+  ultimo_incremento = model._nincrements-1
   var = True
   while ultimo_incremento > 1 and var:
     for i in range(len(x)-1,-1,-1):
       if x[i]!=0:
         ultimo_incremento =i
         break
-    if sum(np.float64(instancia[model._infoobj[d]].iloc[b]) for b in model._bincrements[ultimo_incremento] for d in range(model._ndestinations)) < 0: 
-      for b in model._bincrements[ultimo_incremento]:
-        for d in range(model._ndestinations):
-          sol[b][d]=0
-      x[ultimo_incremento]=0
+    if sum(np.float64(instancia[model._infoobj[d]].iloc[b]) for b in model._bincrements[ultimo_incremento] for d in range(model._ndestinations)) <= 0: 
+       for q in range(len(soly)):
+         if soly[4].iloc[q] == ultimo_incremento:
+           soly[3].iloc[q]=0
+       x[ultimo_incremento]=0
     else: 
       var = False
-  return soly
+    valor_obj= sum(calculate_u(soly,model,instancia))
+  return [soly,valor_obj]
           
         
   
