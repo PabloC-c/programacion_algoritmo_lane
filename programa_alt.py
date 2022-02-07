@@ -14,7 +14,7 @@ direcciones = [direcciones_pablo[indice]]
 for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
   #cut_mine(model)
-  model.setParam('NumericFocus',3)
+  model.setParam('NumericFocus',1)
   directory = valor[1]
   directory = directory[33:-6]
   directory_times  = '../../sols2'+ directory[:-1]+'_times.txt'
@@ -33,7 +33,9 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = False)
+  valor2= valor2(model,instancia)
+  print(valor2)
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =True)
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,pincrements = check_factibility(instancia,model,y)

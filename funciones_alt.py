@@ -171,11 +171,12 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
 
 def get_varx(model):
   # Funcion para obtener la variablexy del modelo
-  phases_0 = [0 for p in range(model._nphases)]
-  x = [ phases_0 for i in range(model._nbenches)]
+  x = []
   for i in range(model._nbenches):
+    aux=[]
     for p in range(model._nphases):
-      x[i][p] = model.getVarByName('x['+str(i)+','+str(p)+']').x
+      aux.append( model.getVarByName('x['+str(i)+','+str(p)+']').x)
+    x.append(aux)
   return x
 
 def update_increments(model,x):
@@ -339,12 +340,13 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
-      print([var.x for var in model.getVars() if 'x' in var.VarName])
+      #print([var.VarName for var in model.getVars() if 'x' in var.VarName])
       x_array.append(bar_x)
       bar_y = get_vary(model,instancia)
-      print([var.x for var in model.getVars() if 'y' in var.VarName])
       bar_z = [bar_y[b][1] for b in range(len(bar_y))] #Suponemos que 1(el indice 1) es el destino refinadero
+      print("I", model._oincrements)
       bar_q =  sum(bar_x[i][p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases) )
+      
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
       update_increments(model,bar_x)
@@ -614,3 +616,11 @@ def last_increment(y0,instancia,model):
   return
  ########################################################################################################################################################################################################################################
  
+def valor2(model,instancia):
+  sum=0
+  print( model._bincrements[1][1])
+  for b in model._bincrements[1][1]:
+    sum= sum + instancia[model._infoobj[1]].iloc[b]
+  print(instancia[model._infoobj[1]].iloc[model._bincrements[1][1][0]])
+  print(instancia[model._infoobj[1]].iloc[model._bincrements[1][1][1]])
+  return sum
