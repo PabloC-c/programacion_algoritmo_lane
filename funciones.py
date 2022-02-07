@@ -635,8 +635,8 @@ def cut_mine(model):
   #Revisamos hasta que incremento sera posible extraer toneladas
   index      = 0
   while index<model._nincrements:
-    if max_nq >= model._oincrements[index]:
-      max_nq -= model._oincrements[index]
+    if max_nq >= model._qincrements[index]:
+      max_nq -= model._qincrements[index]
       index  += 1
     else:
       break

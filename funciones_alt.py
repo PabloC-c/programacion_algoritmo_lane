@@ -65,6 +65,10 @@ def initialize_model(info,instancia):
     model._bincrements.append(b_phases)
     model._qincrements.append(q_phases)
     model._oincrements.append(o_phases)
+  if model._rbenches:
+    model._bincrements.reverse()
+    model._qincrements.reverse()
+    model._oincrements.reverse()
   return model
 
 #Funcion reader: Recibe un string con la direccion del archivo .prob y un string con la direccion del archivo .blocks. Tambien puede recibir diccionarios para generar los data frame
@@ -156,12 +160,9 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
   if flag_full:
     model.addConstr(sum(lambda_var[i] for i in range(index)) <= index-1) 
   #Restricciones de precedencia
-  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases)), 'p1')
-  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1)), 'p2_phases')
-  if model._rbenches:
-    model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i-1,p]*model._qincrements[i][p]>= 0 for i in range(1,model._nbenches) for p in range(model._nphases)), 'p2_benches')
-  else:
-    model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i+1,p]*model._qincrements[i][p]>= 0 for i in range(model._nbenches-1) for p in range(model._nphases)), 'p2_benches')
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p]*model._qincrements[i][p] <= 0 for i in range(model._nbenches) for p in range(model._nphases) if model._qincrements[i][p]>0) , 'p1')
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i,p+1]*model._qincrements[i][p]>= 0 for i in range(model._nbenches) for p in range(model._nphases-1) if model._qincrements[i][p]>0), 'p2_phases')
+  model.addConstrs((model._oincrements[i][p] * x[i,p] - mu[i+1,p]*model._qincrements[i][p]>= 0 for i in range(model._nbenches-1) for p in range(model._nphases)if model._qincrements[i][p]>0), 'p2_benches')
     
   #Restricciones de porcentajes; para cada incremento i, se debe extraer el mismo procentaje de toneladas de cada bloque en i
   model.addConstrs((x[i,p] == sum(y[b,d] for d in range(model._ndestinations)) for i in range(model._nbenches) for p in range(model._nphases) for b in model._bincrements[i][p]))
@@ -217,17 +218,15 @@ def update_constraints(model,Q,x = None):
     mu.append(aux)
   for i in range(model._nbenches):
     for p in range(model._nphases):
-      p1 = model.getConstrByName('p1['+str(i)+','+str(p)+']')
-      model.chgCoeff(p1, mu[i][p] , -model._qincrements[i][p])
-      if p<model._nphases-1:
-        p2 = model.getConstrByName('p2_phases['+str(i)+','+str(p)+']')
-        model.chgCoeff(p2, mu[i][p+1] , -model._qincrements[i][p])
-      if model._rbenches and i>0:
-        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
-        model.chgCoeff(p2, mu[i-1][p] , -model._qincrements[i][p])
-      elif not model._rbenches and i<model._nbenches-1:
-        p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
-        model.chgCoeff(p2, mu[i+1][p] , -model._qincrements[i][p])
+      if model._oincrements[i][p]>0:
+        p1 = model.getConstrByName('p1['+str(i)+','+str(p)+']')
+        model.chgCoeff(p1, mu[i][p] , -model._qincrements[i][p])
+        if p<model._nphases-1:
+          p2 = model.getConstrByName('p2_phases['+str(i)+','+str(p)+']')
+          model.chgCoeff(p2, mu[i][p+1] , -model._qincrements[i][p])
+        if i<model._nbenches-1:
+          p2 = model.getConstrByName('p2_benches['+str(i)+','+str(p)+']')
+          model.chgCoeff(p2, mu[i+1][p] , -model._qincrements[i][p])
   if model._flag_full:
     lambda_var = [var for var in model.getVars() if "lambda_var" in var.VarName]
     index = 0
@@ -350,6 +349,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False):
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
       update_increments(model,bar_x)
+      
       #Se guardan los valores obtenidos
       u_array.append(u_bar_q_t)
       q_bar_array.append(bar_q)
@@ -616,11 +616,49 @@ def last_increment(y0,instancia,model):
   return
  ########################################################################################################################################################################################################################################
  
-def valor2(model,instancia):
-  sum=0
-  print( model._bincrements[1][1])
-  for b in model._bincrements[1][1]:
-    sum= sum + instancia[model._infoobj[1]].iloc[b]
-  print(instancia[model._infoobj[1]].iloc[model._bincrements[1][1][0]])
-  print(instancia[model._infoobj[1]].iloc[model._bincrements[1][1][1]])
-  return sum
+def cut_mine(model):
+  #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
+  max_q = -1
+  for cons in model._infocons:
+    if cons[1] == '*':
+      max_q = cons[-1]
+  if max_q == -1:
+    return False
+  #Lo multiplicamos por la cantidad de periodos
+  max_nq     = max_q* model._nperiods
+  #Revisamos hasta que incremento sera posible extraer toneladas
+  index      = 0
+  index2=0
+  #while index<model._nbenches:
+   # if max_nq >= model._qincrements[index][0]:
+    #    max_nq -= model._qincrements[index][0]
+     #   index  += 1
+    #else:
+      #break
+  for i in range(model._nbenches):
+    index2=0
+    while index2<model._nphases:
+      if max_nq>= model._qincrements[i][index2]:
+          max_nq -= model._qincrements[i][index2]
+          index2 +=1
+      else:
+        break
+    if index2== model._nphases:
+      index +=1
+  print(model._nbenches)
+  #Si no es posible extraer toda la mina, se acota
+  if index < model._nbenches-1:
+    aux = model._bincrements[:]
+    aux = aux[:index+1]
+    #for x in aux:
+     # x= x[:index2+1]
+    #model._bincrements = aux[:]
+    model._blocks = []
+    model._nbenches = index + 1
+    for set in model._bincrements:
+      for set2 in set:
+        model._blocks += set2
+    print(model._nbenches)
+    return True
+  else:
+    return False
