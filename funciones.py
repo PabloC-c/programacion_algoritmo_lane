@@ -69,28 +69,19 @@ def reader(d1,d2):
 #########################################################################################################################################################################################################################################
 # Funcion que crea el modelo
 
-def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = False, p = None, q = None):
+def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = False, x_binary = False):
   model._flag_full = flag_full
   #Anadimos las variables y a los arreglos
   y  = model.addVars(len(instancia),model._ndestinations,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="y")
   #Anadimos las variables mu al arreglo
   mu = model.addVars(model._nincrements,obj = 0, vtype = GRB.BINARY, name = 'mu')
   #Anadimos variables para los intervalos
-  x  = model.addVars(model._nincrements,obj = 0,lb=0,ub=1,vtype= GRB.CONTINUOUS,name="x")
+  if x_binary:
+    x = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype = GRB.BINARY,name="x")
+  else:
+    x = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype = GRB.CONTINUOUS,name="x")
   #Anadimos la funcion objetivo
-  #Opcion 1: Regresion lineal
-  if option == 'lr':
-    #Se crea y ajusta el regresor lineal
-    regressor = LinearRegression().fit(qlist, vlist)
-    #Se extraen las constantes 
-    a0 = regressor.coef_[0]
-    #Se crea variable auxiliar
-    q_var = model.addVar(lb=0,vtype= GRB.CONTINUOUS,name="q_var")
-    #Se define la variable auxiliar como Q-q
-    model.addConstr(q_var + sum(x[i]*model._oincrements[i] for i in range(model._nincrements))  == Q,'aux_cons')    
-    #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations)) + model._discount_rate*a0*(q_var),GRB.MAXIMIZE)
-  #Opcion 2: Piecewise Linear de Gurobi
+  #Opcion 1: Piecewise Linear de Gurobi
   if option == 'pwl':
     #Se ajustan los datos de input
     qlist = np.array([(qlist[i])[0] for i in range(len(qlist))])
@@ -107,21 +98,6 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
     model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
     model.setPWLObj(q_var,qlist,vlist)
-  #Opcion 3: Considerar variables para el tiempo futuro
-  if option == 'hat':
-    #Anadimos la variables para el futuro x y mu gorro
-    x_hat  = model.addVars(model._nincrements,model._nperiods-t,lb=0,ub=1,vtype=GRB.CONTINUOUS,name= "x_hat")
-    mu_hat = model.addVars(model._nincrements,model._nperiods-t,vtype=GRB.BINARY,name= "mu_hat")
-    #Se crea la funcion objetivo
-    #model.setObjetive(sum(y[i][d] * instancia[model._infoobj[d]].iloc[i] for i in instancia[0] for d in range(model._ndestinations)) + sum( ((model._discount_rate)**t)* x[i]*p[i] for t in range(model._nperiods) for i in model._nincrements ,GRB.MAXIMIZE))
-    #Restriccion de extraccion maxima; no se puede extraer mas del 100% de un incremento
-    model.addConstrs(x[i] + sum(x_hat[i,j] for j in range(model._nperiods-t)) <= 1 for i in range(model._nincrements))
-    #Restriccion de precedencia
-    model.addConstrs(x_hat[i,j] <= mu_hat[i,j] for i in range(model._nincrements) for j in range(model._nperiods-t))
-    model.addConstrs((mu_hat[i,j] <= sum( x_hat[i-1,k] for k in range(0,j)) + x[i-1] for i in range(1,model._nincrements) for j in range(model._nperiods-t)))
-    aux = sum(y[i,d] * instancia[model._infoobj[d]].iloc[i] for i in model._blocks for d in range(model._ndestinations))
-    aux += sum(model._discount_rate**t *sum(p[i]*x_hat[i,j] for i in range(model._nincrements)) for j in range(model._nperiods-t))
-    model.setObjective(aux, GRB.MAXIMIZE)
   #Anadimos las restricciones
   #Restricciones de capacidad
   if flag_full:
@@ -272,7 +248,7 @@ def copy_model(model):
 #########################################################################################################################################################################################################################################
 #Funcion solver
 
-def original_solver(model,instancia,option = 'pwl',flag_full = False,new_model = False):
+def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = False, new_model = False):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
@@ -282,7 +258,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,new_model =
   aux_v_array  = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
   print('Creacion modelo')  
-  create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full)
+  create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full, x_binary)
   print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
   v_array = [[0 for i in range(model._nperiods+1)]]
@@ -307,24 +283,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,new_model =
     # Optimizacion de V
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
     print("Segundo ciclo")
-    while Q_k > 0 and t <= model._nperiods:
+    while Q_k > 10**(-3) and t <= model._nperiods:
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
-      print('Destinos ',model._ndestinations)
-      print('Periodos ',model._nperiods)
-      print('Tasa de descuento ',model._discount_rate)
-      print('Cantidad de restricciones ',model._nconstraints)
-      print('Cantidad de incrementos ',model._nincrements)
-      print('Informacion de restricciones ',model._infocons)
-      print('Informacion de funcion objetivo ',model._infoobj)
-      flag_blocks = False
-      for blocks_i in model._bincrements:
-        flag_blocks = pd.DataFrame(blocks_i).isnull().values.any()
-        if flag_blocks:
-          break
-      print('Bloques por incrementos ',flag_blocks)
-      print('Toneladas restantes ',pd.DataFrame(model._qincrements).isnull().values.any())
-      print('Toneladas originales ',pd.DataFrame(model._oincrements).isnull().values.any())
-      print('bloques a usar ',pd.DataFrame(model._blocks).isnull().values.any())
       print('Comienzo optimizacion')
       model.optimize()
       print('Optimizacion Terminada')
