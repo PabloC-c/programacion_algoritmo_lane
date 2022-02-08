@@ -443,15 +443,33 @@ def calculate_u(y,model,instancia):
 #########################################################################################################################################################################################################################################
 
 def check_factibility(instancia,model,y):
-  tol = 10**(-3)
   tf = max(y[2])
   t0 = min(y[2])
+  data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
+  data3=[]
+  for i in range(len(model._infocons)):
+    data3.append("Restriccion de capacidad" + str(i))
+  df= pd.DataFrame(columns=data,index=range(int(tf)))
+  df3=pd.DataFrame(columns=data3,index=range(int(tf)))
+  Vf=0
+  Va=0
+  tol = 10**(-3)
+  
   if t0 == 0:
     tf = tf + 1
+  data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
+  data3=[]
+  for i in range(len(model._infocons)):
+    data3.append("Restriccion de capacidad" + str(i))
+  df= pd.DataFrame(columns=data,index=range(int(tf)))
+  df3=pd.DataFrame(columns=data3,index=range(int(tf)))
+  Vf=0
+  Va=0
   output = []
   aux_phases   = [0 for p in range(model._nphases)]
   p_increments = [aux_phases[:] for i in range(model._nbenches)]
   for i in range(int(tf)):
+    restricciones=[]
     problem = [i]
     if t0 == 1:
       t = i+1
@@ -459,20 +477,32 @@ def check_factibility(instancia,model,y):
       t = i
     y_t = y[y[2] == t]
     index = 1
+    A=0
+    Ad=0
+    for q in range(len(y_t)):
+      b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
+      A = A + val_y* instancia[model._infoobj[d]].iloc[b]
     for cons in model._infocons:
       r = 0
       if cons[1] == '*':
         for q in range(len(y_t)):
           b,val_y = int(y_t[0].iloc[q]),y_t[3].iloc[q]
           r += val_y * instancia[cons[0]].iloc[b]
+        restricciones.append( "*"+str(r) + "" + "<=" + "" + str(cons[3]))
       else:
         for q in range(len(y_t)):
           b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
           if d == int(cons[1]):
             r += val_y * instancia[cons[0]].iloc[b]
+        restricciones.append( "s"+str(r) + "" + "<=" + "" + str(cons[3]))
       if r-cons[3] > tol :
           problem.append('R. Capacidad '+str(index))
       index +=1
+    df3.iloc[i]= restricciones
+    Ad= A*(model._discount_rate)**i
+    Vf= Va + Ad
+    df.iloc[i]= [Va,A,Ad,Vf]
+    Va=Vf 
     index = 0
     for j in range(model._bench_min,model._bench_max+1):
       data_bench = y_t[y_t[4] == j]
@@ -514,8 +544,9 @@ def check_factibility(instancia,model,y):
        feasible = False
        break
   if model._rbenches:
-      p_increments.reverse()       
-  return feasible,output,p_increments  
+      p_increments.reverse()
+  tabla= pd.DataFrame(p_increments) 
+  return feasible,output,tabla,df,df3 
   #hacer tablas:
   #Incremenntos: Tabla lo que saco por incremento por periodo
   #Valores: 3 columnas por año, van, lo que aporta el van sin decontar, con la tasa de decuento, cuanto hay acumulado
@@ -650,6 +681,63 @@ def cut_mine(model):
       for set2 in set:
         model._blocks += set2
     print(model._nbenches)
+    return True
+  else:
+    return False
+
+def cut_mine_period(model):
+  #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
+  max_q = -1
+  for cons in model._infocons:
+    if cons[1] == '*':
+      max_q = cons[-1]
+  if max_q == -1:
+    return False
+  #Lo multiplicamos por la cantidad de periodos
+  #Revisamos hasta que incremento sera posible extraer toneladas
+  index = 0
+  index2=0
+  #while index<model._nbenches:
+   # if max_nq >= model._qincrements[index][0]:
+    #    max_nq -= model._qincrements[index][0]
+     #   index  += 1
+    #else:
+      #break
+  for i in range(model._nbenches):
+    index2=0
+    while index2<model._nphases:
+      if max_q>= model._qincrements[i][index2]:
+          max_q -= model._qincrements[i][index2]
+          index2 +=1
+      else:
+        break
+    if index2== model._nphases:
+      index +=1
+  print(model._nbenches)
+  #Si no es posible extraer toda la mina, se acota
+  if index < model._nbenches-1:
+    aux = model._bincrements[:]
+    aux = aux[0:index+1]
+    #for x in aux:
+     # x= x[:index2+1]
+    model._bincrements = aux[:]
+    model._blocks = []
+    model._nbenches = index + 1
+    for set in model._bincrements:
+      for set2 in set:
+        model._blocks += set2
+    return True
+  if index> model._nbenches-1:
+    print("entre")
+    j=0
+    for x in model._bincrements2:
+      if x not in model._bincrements and j< (index- model._nbenches +1):
+        print(x)
+        model._bincrements.append(x)
+        for set in x:
+          model._blocks += set
+        j=j+1
+    model._nbenches= index +1
     return True
   else:
     return False
