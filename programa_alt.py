@@ -13,15 +13,16 @@ direcciones = [direcciones_pablo[indice]]
 
 for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
-  model.setParam('NumericFocus',1)
+  cut_mine(model)
+  model.setParam('NumericFocus',3)
   directory = valor[1]
   directory = directory[33:-6]
-  directory_times  = '../../sols'+ directory[:-1]+'_times.txt'
-  directory_v      = '../../sols'+ directory[:-1]+'_v_k.txt'
-  directory_y      = '../../sols'+ directory + 'txt'
-  directory_table1 = '../../sols'+ directory[:-1]+'_values.txt'
-  directory_table2 = '../../sols'+ directory[:-1]+'_increments.txt'
-  directory_table3 = '../../sols'+ directory[:-1]+'_constraints.txt'
+  directory_times  = '../../sols_model2_free'+ directory[:-1]+'_times.txt'
+  directory_v      = '../../sols_model2_free'+ directory[:-1]+'_v_k.txt'
+  directory_y      = '../../sols_model2_free'+ directory + 'txt'
+  directory_table1 = '../../sols_model2_free'+ directory[:-1]+'_values.txt'
+  directory_table2 = '../../sols_model2_free'+ directory[:-1]+'_increments.txt'
+  directory_table3 = '../../sols_model2_free'+ directory[:-1]+'_constraints.txt'
   #directory_prev = valor[0]
   #directory_prev = directory_prev[23:-5]
   #array = directory_prev.split('_')
@@ -32,18 +33,14 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =True)   
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False)   
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,pincrements,df,df3 = check_factibility(instancia,model,y)
   print('Feasible',feasible)
-  print(pincrements)
-  print(df)
-  print(df3)
-  #df1,df2,df3 = Tablas(model,instancia,y)
-  #write_table(df1,directory_table1)
-  #write_table(df2.T,directory_table2)
-  #write_table(df3,directory_table3)
+  write_table(df,directory_table1)
+  write_table(pincrements,directory_table2)
+  write_table(df3,directory_table3)
   writer_v_k(directory_v,v_array)
   writer_times(directory_times,times)
   print('Siguiente problema')

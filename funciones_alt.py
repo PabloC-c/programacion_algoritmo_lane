@@ -323,9 +323,6 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
       u_bar_q_t = get_u_obj(bar_y,instancia,model)
       #Actualizacion de las toneladas por incremento
       update_increments(model,bar_x)
-      #for i in range(model._nbenches): 
-      #  print('bench ',i,':',bar_x[i])
-      #Se guardan los valores obtenidos
       u_array.append(u_bar_q_t)
       q_bar_array.append(bar_q)
       #Se quita el tonelaje extraido
@@ -636,7 +633,7 @@ def last_increment(y0,instancia,model):
     for set in model._bincrements:
       model._blocks += set
   return
- ########################################################################################################################################################################################################################################
+#########################################################################################################################################################################################################################################
  
 def cut_mine(model):
   #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
@@ -671,13 +668,15 @@ def cut_mine(model):
   #Si no es posible extraer toda la mina, se acota
   if index < model._nbenches-1:
     aux = model._bincrements[:]
-    aux = aux[:index+1]
+    aux = aux[:index]
     #for x in aux:
      # x= x[:index2+1]
     #model._bincrements = aux[:]
     model._blocks = []
-    model._nbenches = index + 1
-    for set in model._bincrements:
+    model._nbenches = index
+    model._bincrements = []
+    for set in aux:
+      model._bincrements.append(set)
       for set2 in set:
         model._blocks += set2
     print(model._nbenches)
@@ -722,7 +721,7 @@ def cut_mine_period(model):
      # x= x[:index2+1]
     model._bincrements = aux[:]
     model._blocks = []
-    model._nbenches = index + 1
+    model._nbenches = index
     for set in model._bincrements:
       for set2 in set:
         model._blocks += set2
@@ -741,3 +740,22 @@ def cut_mine_period(model):
     return True
   else:
     return False
+
+#########################################################################################################################################################################################################################################
+
+def sol_to_OMP(directory):
+  y = read_y(directory)
+  y = pd.read_csv(directory, header = None, sep = ' ',dtype = float)
+  y = y[[0,1,2,3]]
+  y = y.sort_values([0,1,2,3], ascending=True)
+  y[3] = y[3].round(6)
+  string = ''
+  for i in range(len(y)):
+    for j in range(3):
+      string += str(int(y[j].iloc[i])) + ' '
+    string += str(y[3].iloc[i])+'\n'
+  new_directory = directory[:-3]+'sol'
+  f = open(new_directory, "w")
+  f.write(string)
+  f.close()
+  

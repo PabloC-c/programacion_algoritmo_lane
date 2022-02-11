@@ -12,15 +12,17 @@ direcciones =  [direcciones_pablo[1]]
 
 prints = False
 soluciones_prev = False
-filtrado = True
+filtrado = False
+random = True
 
 if prints:
   for valor in direcciones:
+    nombre_mina = 'Palomo'
     model,info,instancia = reader(valor[0],valor[1])
     directory = valor[1]
     directory = directory[33:-6]
-    directory_times = '../../sols2'+directory[:-1]+'_times.txt'
-    directory_v = '../../sols2'+directory[:-1]+'_v_k.txt'
+    directory_times = '../../sols_model2_res'+directory[:-1]+'_times.txt'
+    directory_v = '../../sols_model2_res'+directory[:-1]+'_v_k.txt'
     #directory = '../../sols2' + directory + 'txt' 
     #y = read_y(directory)
     v = read_y(directory_v)
@@ -33,15 +35,27 @@ if prints:
     #Grafico de valores V_0
     fig1 = plt.figure()
     ax1  = fig1.add_subplot()
-    x = np.arange(1,len(times)+1,dtype=np.int16)
+    x = np.arange(1,len(v)+1,dtype=np.int16)
     if len(times) > 10:
       ax1.scatter(x,v, color = 'c', marker = '.',linestyle='solid')
     else:
       ax1.scatter(x,v, color = 'c', marker = 'o')
-    ax1.set_title('Valor inicial estimado de la Mina ' + 'Palomo')
+    ax1.set_title('Valor inicial estimado de la Mina ' + nombre_mina)
     ax1.set_xlabel('iteracion k')
     ax1.set_ylabel('V_0(k)')
     fig1.savefig(directory_v[:-3]+'.png')
+    #Grafico de tiempo
+    fig1 = plt.figure()
+    ax1  = fig1.add_subplot()
+    x = np.arange(1,len(times)+1,dtype=np.int16)
+    if len(times) > 10:
+      ax1.scatter(x,times, color = 'c', marker = '.',linestyle='solid')
+    else:
+      ax1.scatter(x,times, color = 'c', marker = 'o')
+    ax1.set_title('Tiempo por Iteracion en la Mina ' + nombre_mina + ' [Minutos]')
+    ax1.set_xlabel('iteracion k')
+    ax1.set_ylabel('Tiempo')
+    fig1.savefig(directory_times[:-3]+'.png')    
 
 elif soluciones_prev:
   for valor in direcciones:
@@ -68,3 +82,12 @@ elif filtrado:
   model,info,instancia = reader(valor[0],valor[1])
   print(instancia[model._phases].unique())
   #print(instancia)
+
+elif random:
+  valor = direcciones[0]
+  model,info,instancia = reader(valor[0],valor[1])
+  directory = valor[1]
+  directory = directory[33:-6]
+  directory = '../../sols_full' + directory + 'txt' 
+  y = sol_to_OMP(directory)
+    
