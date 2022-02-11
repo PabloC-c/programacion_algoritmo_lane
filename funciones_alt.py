@@ -758,4 +758,82 @@ def sol_to_OMP(directory):
   f = open(new_directory, "w")
   f.write(string)
   f.close()
+
+
+
+def grafo(model,instancia):
+  peso=[[0,0] for b in model._bincrements]
+  i=0
+  while i< model._nbenches * model._nphases:
+    if i%model._nphases>0:
+      peso[i][0]= model._qincrements[ (i%model._nphases)-1 , i// model._nphases]
+    if i%model._nphases==0:
+      peso[i][0]= 10**12
+    if i//model._nphases >0:
+      peso[i][1]= model._qincrements[ (i%model._nphases) , (i// model._nphases)-1]
+    if i//model._nphases == 0:
+      peso[i][1]= 10**12
+    i=i+1
+  return peso
+    
+# Python3 Program to print BFS traversal
+# from a given source vertex. BFS(int s)
+# traverses vertices reachable from s.
+from collections import defaultdict
+
+# This class represents a directed graph
+# using adjacency list representation
+class Graph:
+	# Constructor
+  def __init__(self):
+		# default dictionary to store graph
+    self.graph = defaultdict(list)
+	# function to add an edge to graph
+  def addEdge(self,u,v):
+    self.graph[u].append(v)
+	# Function to print a BFS of graph
+  def BFS(self, s,peso):
+		# Mark all the vertices as not visited
+    visited = [False] * (max(self.graph) + 1)
+    max_q   = (-1)
+    for cons in model._infocons:
+      if cons[1] == '*':
+        max_q = cons[-1]
+      if max_q == -1:
+        return False
+
+		# Create a queue for BFS
+    queue = []
+
+		# Mark the source node as
+		# visited and enqueue it
+    queue.append(s)
+    visited[s] = True
+
+    while queue:
+			# Dequeue a vertex from
+			# queue and print it
+      s = queue.pop(0)
+			# Get all adjacent vertices of the
+			# dequeued vertex s. If a adjacent
+			# has not been visited, then mark it
+			# visited and enqueue it
+      for i in self.graph[s]:
+        if i//model._nbecnhes==s//model._nbenches:
+          if visited[i] == False and max_q - peso[i]>=0:
+            queue.append(i)
+            visited[i[0]][i[1]] = True
+            max_q=max_q - peso[i]
+        if i[1]==s[1]:
+          if visited[i] == False and max_q - peso[s[0]][s[1]][0]>=0:
+            queue.append(i)
+            visited[i[0]][i[1]] = True
+            max_q=max_q - peso[s[0]][s[1]][0]
+  
+      return visited     
+
+# Driver code
+
+# Create a graph given in
+# the above diagram
   

@@ -13,7 +13,16 @@ direcciones = [direcciones_pablo[indice]]
 
 for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
-  cut_mine(model)
+  aristas,peso=grafo(model,instancia)
+  aristas=[]
+  for p in model._nbenches:
+    if i % model._nphases> 0:
+      g.addEdge(i-1,i)
+    if i >= model._nphases:
+      g.addEdge(i- model._nphases)
+  g = Graph()
+  visited = g.BFS(0,peso)
+  print(visited)
   model.setParam('NumericFocus',3)
   directory = valor[1]
   directory = directory[33:-6]
