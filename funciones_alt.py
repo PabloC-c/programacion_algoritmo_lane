@@ -771,15 +771,19 @@ def sol_to_OMP(directory):
 
 
 def grafo(model,instancia):
-  peso=[[0,0] for b in model._bincrements]
+  peso=[[0,0] for i in range(model._nbenches*model._nphases)]
   i=0
   while i< model._nbenches * model._nphases:
+    #print((i//model._nphases))
+    #print(i%model._nphases)
+    #print("a",model._nbenches)
+    #print("b",model._nphases)
     if i%model._nphases>0:
-      peso[i][0]= model._qincrements[ (i%model._nphases)-1 , i// model._nphases]
+      peso[i][0]= model._qincrements[ i// model._nphases][ (i%model._nphases)-1]
     if i%model._nphases==0:
       peso[i][0]= 10**12
     if i//model._nphases >0:
-      peso[i][1]= model._qincrements[ (i%model._nphases) , (i// model._nphases)-1]
+      peso[i][1]= model._qincrements[ (i// model._nphases)-1][ (i%model._nphases)]
     if i//model._nphases == 0:
       peso[i][1]= 10**12
     i=i+1
@@ -801,50 +805,60 @@ class Graph:
   def addEdge(self,u,v):
     self.graph[u].append(v)
 	# Function to print a BFS of graph
-  def BFS(self, s,peso):
+  def BFS(self, s,peso,model):
 		# Mark all the vertices as not visited
+    print(max(self.graph)+1)
+    caminos = [0] * (max(self.graph)+1)
     visited = [False] * (max(self.graph) + 1)
+    print(visited)
     max_q   = (-1)
     for cons in model._infocons:
       if cons[1] == '*':
-        max_q = cons[-1]
+        max_q = cons[-1] #* model._nperiods
       if max_q == -1:
         return False
 
 		# Create a queue for BFS
     queue = []
-
 		# Mark the source node as
 		# visited and enqueue it
     queue.append(s)
     visited[s] = True
 
-    while queue:
+    while len(queue)>0:
 			# Dequeue a vertex from
 			# queue and print it
       s = queue.pop(0)
+      
 			# Get all adjacent vertices of the
 			# dequeued vertex s. If a adjacent
 			# has not been visited, then mark it
 			# visited and enqueue it
       for i in self.graph[s]:
-        if i//model._nbecnhes==s//model._nbenches:
-          if visited[i] == False and max_q - peso[i]>=0:
-            queue.append(i)
-            visited[i[0]][i[1]] = True
-            max_q=max_q - peso[i]
-        if i[1]==s[1]:
-          if visited[i] == False and max_q - peso[s[0]][s[1]][0]>=0:
-            queue.append(i)
-            visited[i[0]][i[1]] = True
-            max_q=max_q - peso[s[0]][s[1]][0]
-  
-      return visited     
-
-# Driver code
-
-# Create a graph given in
-# the above diagram
+        if i> max(self.graph):
+          break
+        if i//model._nphases==s//model._nphases:
+          
+          if  caminos[s] + peso[i][0]< max_q or caminos[s]==0:
+            
+            camino= caminos[s] + peso[i][0]
+            if camino<caminos[i] or caminos[i]==0:
+              
+              caminos[i]= camino
+              queue.append(i)
+              visited[i] = True
+            
+        if i%model._nphases== s%model._nphases:
+          
+          if  caminos[s] - peso[i][1]< max_q or caminos[s]==0:
+            camino= caminos[s] + peso[i][1]
+            if camino<caminos[i] or caminos[i]==0:
+              caminos[i]= camino
+              queue.append(i)
+              visited[i] = True
+        
+    
+    return visited     
   
 #########################################################################################################################################################################################################################################
 
