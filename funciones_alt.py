@@ -427,9 +427,11 @@ def read_y(directory):
   return y
 
 def calculate_u(y,model,instancia):
-  tf = int(max(y[2])+1)
-  u  = [0 for i in range(tf)]
+  tf = int(max(y[2]))
   t0 = min(y[2])
+  u  = [0 for i in range(tf)]
+  if t0 == 0:
+    u.append(0)
   for i in range(len(y)):
     b,d,t,val_y =  int(y[0].iloc[i]),int(y[1].iloc[i]),int(y[2].iloc[i]),y[3].iloc[i]
     if t0 == 0 :
@@ -844,3 +846,30 @@ class Graph:
 # Create a graph given in
 # the above diagram
   
+#########################################################################################################################################################################################################################################
+
+def create_arrays_y(y,model,instancia):
+  u_array = calculate_u(y,model,instancia)
+  q_bar_array = [0 for i in range(len(u_array))]
+  tf = int(max(y[2]))
+  t0 = min(y[2])
+  aux     = [False for p in range(model._nphases)]
+  visited = [aux[:] for i in range(model._nbenches)]
+  for t in range(t0,tf+1):
+    y_t = y[y[2] == t]
+    blocks = y[0].unique()
+    for b in blocks:
+      i,p   = instancia[model._benches].iloc[b],instancia[model._phases].iloc[b]
+      if not visited[i][p]:
+        y_b   = y_t[y_t[0] == b]
+        value = y_b[3].sum()      
+        q_bar_array += value*model._oincrements[i][p]
+        visited[i][p] = True
+  Q0      = sum(model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases))
+  V_Q_t   = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
+  #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
+  aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)] 
+  aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
+  aux_v_array.append(0)
+  aux_q_array.append([0])
+  return aux_q_array,aux_v_array
