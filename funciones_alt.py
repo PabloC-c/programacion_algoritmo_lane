@@ -274,7 +274,7 @@ def codify_y(y0,y,t,model,instancia):
 #########################################################################################################################################################################################################################################
 #Funcion solver
 
-def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary = False):
+def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary = False, parada = 'concava'):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
@@ -372,12 +372,38 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     #Se revisa el criterio de parada
     vk0 = v_array[-2][0]
     vk1 = v_array[-1][0]
-    print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
-    print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
-    # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
-    if vk1 <= vk0 and k > 2:
-        #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
-        return y0_array,x0_array,times_k,q_array,v_array
+    if parada == 'concava':
+      print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
+      print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
+      # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
+      if vk1 <= vk0 and k > 2:
+          #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
+          return y0_array,x0_array,times_k,q_array,v_array
+    if parada == 'cauchy':
+       epsilon = vk1/10
+       N = int(k/2)
+       print("k =" , k)
+       aux_v = []
+       for i in range(N,len(v_array)):
+         aux_v.append(v_array[i][0])
+       if k>3:
+         M = max(aux_v)
+         nmax = 0
+         for m in aux_v:
+           if abs(M-m)<=M/100:
+             nmax +=1
+         if nmax>1: 
+           print('máximo =', M)
+           return y0_array,x0_array,times_k,q_array,v_array
+         for i in range(N,len(v_array)):
+           for j in range(N,len(v_array)):
+             dif = abs(v_array[i][0]-v_array[j][0])
+             print("diferencia =", dif, "epsilon =", epsilon, "cauchy =",dif<=epsilon)
+             if dif > epsilon:
+               break
+           else:
+             return y0_array,x0_array,times_k,q_array,v_array
+           break
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
     x0_array = x_array
     y0_array = y_array

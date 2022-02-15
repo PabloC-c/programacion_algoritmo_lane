@@ -18,37 +18,37 @@ for valor in direcciones:
   print(model._nbenches)
   print("min", model._bench_min)
   print("min2", model._bench_max)
-  peso=grafo(model,instancia)
-  aristas=[]
-  g = Graph()
-  for i in range(model._nbenches* model._nphases):
-    if i % model._nphases> 0:
-      g.addEdge(i-1,i)
-    if i >= model._nphases:
-      g.addEdge(i- model._nphases,i)
-  visited = g.BFS(0,peso,model)
-  print(visited)
-  increment_max=0
-  norma_max=0
-  max_benches=0
-  max_phases=0
-  for i in range(len(visited)):
-    if visited[i]== True:
-      norma= (i%model._nphases) + (i//model._nphases)
-      benches=(i//model._nphases)
-      phases=(i%model._nphases) 
-      if norma> norma_max:
-        increment_max=i
-        norma_max=norma
-      if phases> max_phases:
-        max_phases= phases
-      if benches> max_benches:
-       max_benches= benches
+  #peso=grafo(model,instancia)
+  #aristas=[]
+  #g = Graph()
+  #for i in range(model._nbenches* model._nphases):
+  #  if i % model._nphases> 0:
+  #    g.addEdge(i-1,i)
+  #  if i >= model._nphases:
+  #    g.addEdge(i- model._nphases,i)
+  #visited = g.BFS(0,peso,model)
+  #print(visited)
+  #increment_max=0
+  #norma_max=0
+  #max_benches=0
+  #max_phases=0
+  #for i in range(len(visited)):
+  #  if visited[i]== True:
+  #    norma= (i%model._nphases) + (i//model._nphases)
+  #    benches=(i//model._nphases)
+  #    phases=(i%model._nphases) 
+  #    if norma> norma_max:
+  #      increment_max=i
+  #      norma_max=norma
+  #    if phases> max_phases:
+  #      max_phases= phases
+  #    if benches> max_benches:
+  #     max_benches= benches
     #if visited[i]==False:
      # model._bincrements[i//model._nphases][i%model._nphases]= []
       #model._qincrements[i//model._nphases][i%model._nphases]= 0
       #model._oincrements[i//model._nphases][i%model._nphases]= 0
-  print("max",max_benches)
+  #print("max",max_benches)
   #model._bincrements= model._bincrements[:max_benches+1]
   #for x in model._bincrements:
    # x= x[:max_phases+1]
@@ -79,7 +79,7 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False)   
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False, x_binary = False, parada = 'cauchy')   
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,pincrements,df,df3 = check_factibility(instancia,model,y)
