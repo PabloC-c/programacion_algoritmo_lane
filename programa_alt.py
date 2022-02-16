@@ -13,53 +13,7 @@ direcciones = [direcciones_pablo[indice]]
 
 for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
-  #print(model._oincrements[0][0],model._oincrements[0][1],model._oincrements[1][0])
-  print(model._nphases)
-  print(model._nbenches)
-  print("min", model._bench_min)
-  print("min2", model._bench_max)
-  #peso=grafo(model,instancia)
-  #aristas=[]
-  #g = Graph()
-  #for i in range(model._nbenches* model._nphases):
-  #  if i % model._nphases> 0:
-  #    g.addEdge(i-1,i)
-  #  if i >= model._nphases:
-  #    g.addEdge(i- model._nphases,i)
-  #visited = g.BFS(0,peso,model)
-  #print(visited)
-  #increment_max=0
-  #norma_max=0
-  #max_benches=0
-  #max_phases=0
-  #for i in range(len(visited)):
-  #  if visited[i]== True:
-  #    norma= (i%model._nphases) + (i//model._nphases)
-  #    benches=(i//model._nphases)
-  #    phases=(i%model._nphases) 
-  #    if norma> norma_max:
-  #      increment_max=i
-  #      norma_max=norma
-  #    if phases> max_phases:
-  #      max_phases= phases
-  #    if benches> max_benches:
-  #     max_benches= benches
-    #if visited[i]==False:
-     # model._bincrements[i//model._nphases][i%model._nphases]= []
-      #model._qincrements[i//model._nphases][i%model._nphases]= 0
-      #model._oincrements[i//model._nphases][i%model._nphases]= 0
-  #print("max",max_benches)
-  #model._bincrements= model._bincrements[:max_benches+1]
-  #for x in model._bincrements:
-   # x= x[:max_phases+1]
-  #model._nphases= max_phases +1
-  #model._nbenches= max_benches +1
-  #if model._bench_min ==0:
-   # model._nbenches= max_benches+ 1
-  #model._blocks=[]
-  #for set in model._bincrements:
-   # for set2 in set:
-    #  model._blocks+= set2
+  model.setParam("MIPFocus",2)
   model.setParam('NumericFocus',3)
   directory = valor[1]
   directory = directory[33:-6]

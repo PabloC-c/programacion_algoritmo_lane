@@ -71,6 +71,17 @@ def initialize_model(info,instancia):
     model._bincrements.reverse()
     model._qincrements.reverse()
     model._oincrements.reverse()
+  model._nphases2= int(model._nphases)
+  model._nbenches2= int(model._nbenches)
+  model._bincrements2= model._bincrements.copy()
+  model._npeso=grafo(model,instancia)
+  aristas=[]
+  model._graph= Graph()
+  for i in range(model._nbenches* model._nphases):
+    if i % model._nphases> 0:
+      model._graph.addEdge(i-1,i)
+    if i >= model._nphases:
+      model._graph.addEdge(i- model._nphases,i)
   return model
 
 #Funcion reader: Recibe un string con la direccion del archivo .prob y un string con la direccion del archivo .blocks. Tambien puede recibir diccionarios para generar los data frame
@@ -310,9 +321,25 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
     print("Segundo ciclo")
     while Q_k > 10**(-3) and t <= model._nperiods:
+      if t==1:
+        cortar(model,instancia)
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
       print('Comienzo optimizacion')
       model.optimize()
+      if t>1:
+        a=add(model,instancia)
+        condition=True
+        for x in a:
+          condition= condition and x
+        if condition==True:
+          print(model._bincrements2== model._bincrements)
+          model._bincrements= model._bincrements2.copy()
+          blocks=[]
+          for set in model._bincrements2:
+            for set2 in set:
+              blocks += set2
+          print(model._blocks==blocks)
+          model._blocks=blocks
       print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
@@ -338,7 +365,12 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
       if t == model._nperiods:
         aux_v_array= np.array(aux_v_array) + np.random.normal(0,10**7,len(aux_v_array))
         update_objective(model,instancia,aux_q_array,aux_v_array,model._nperiods,option)
+      if bar_q<10**-3:
+        break
     #Se calcula lo que vale la mina al tener todas las toneladas a partir de los valores u
+    model._bincrements= model._bincrements2.copy()
+    model._nbenches= int(model._nbenches2)
+    model._nphases= int(model._nphases2)
     print('Toneladas finales = ',Q_k)
     V_Q_t = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
     print('Valor de la mina = ',V_Q_t)
@@ -663,111 +695,7 @@ def last_increment(y0,instancia,model):
   return
 #########################################################################################################################################################################################################################################
  
-def cut_mine(model):
-  #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
-  max_q = -1
-  for cons in model._infocons:
-    if cons[1] == '*':
-      max_q = cons[-1]
-  if max_q == -1:
-    return False
-  #Lo multiplicamos por la cantidad de periodos
-  max_nq     = max_q* model._nperiods
-  #Revisamos hasta que incremento sera posible extraer toneladas
-  index      = 0
-  index2=0
-  #while index<model._nbenches:
-   # if max_nq >= model._qincrements[index][0]:
-    #    max_nq -= model._qincrements[index][0]
-     #   index  += 1
-    #else:
-      #break
-  for i in range(model._nbenches):
-    index2=0
-    while index2<model._nphases:
-      if max_nq>= model._qincrements[i][index2]:
-          max_nq -= model._qincrements[i][index2]
-          index2 +=1
-      else:
-        break
-    if index2== model._nphases:
-      index +=1
-  print(model._nbenches)
-  #Si no es posible extraer toda la mina, se acota
-  if index < model._nbenches-1:
-    aux = model._bincrements[:]
-    aux = aux[:index]
-    #for x in aux:
-     # x= x[:index2+1]
-    #model._bincrements = aux[:]
-    model._blocks = []
-    model._nbenches = index
-    model._bincrements = []
-    for set in aux:
-      model._bincrements.append(set)
-      for set2 in set:
-        model._blocks += set2
-    print(model._nbenches)
-    return True
-  else:
-    return False
 
-def cut_mine_period(model):
-  #Obetenemos el lado izquierdo de la restriccion de capacidad maxima
-  max_q = -1
-  for cons in model._infocons:
-    if cons[1] == '*':
-      max_q = cons[-1]
-  if max_q == -1:
-    return False
-  #Lo multiplicamos por la cantidad de periodos
-  #Revisamos hasta que incremento sera posible extraer toneladas
-  index = 0
-  index2=0
-  #while index<model._nbenches:
-   # if max_nq >= model._qincrements[index][0]:
-    #    max_nq -= model._qincrements[index][0]
-     #   index  += 1
-    #else:
-      #break
-  for i in range(model._nbenches):
-    index2=0
-    while index2<model._nphases:
-      if max_q>= model._qincrements[i][index2]:
-          max_q -= model._qincrements[i][index2]
-          index2 +=1
-      else:
-        break
-    if index2== model._nphases:
-      index +=1
-  print(model._nbenches)
-  #Si no es posible extraer toda la mina, se acota
-  if index < model._nbenches-1:
-    aux = model._bincrements[:]
-    aux = aux[0:index+1]
-    #for x in aux:
-     # x= x[:index2+1]
-    model._bincrements = aux[:]
-    model._blocks = []
-    model._nbenches = index
-    for set in model._bincrements:
-      for set2 in set:
-        model._blocks += set2
-    return True
-  if index> model._nbenches-1:
-    print("entre")
-    j=0
-    for x in model._bincrements2:
-      if x not in model._bincrements and j< (index- model._nbenches +1):
-        print(x)
-        model._bincrements.append(x)
-        for set in x:
-          model._blocks += set
-        j=j+1
-    model._nbenches= index +1
-    return True
-  else:
-    return False
 
 #########################################################################################################################################################################################################################################
 
@@ -797,20 +725,20 @@ def sol_to_OMP(directory):
 
 
 def grafo(model,instancia):
-  peso=[[0,0] for i in range(model._nbenches*model._nphases)]
+  peso=[[0,0] for i in range(model._nbenches2*model._nphases2)]
   i=0
-  while i< model._nbenches * model._nphases:
+  while i< model._nbenches2 * model._nphases2:
     #print((i//model._nphases))
     #print(i%model._nphases)
     #print("a",model._nbenches)
     #print("b",model._nphases)
-    if i%model._nphases>0:
-      peso[i][0]= model._qincrements[ i// model._nphases][ (i%model._nphases)-1]
-    if i%model._nphases==0:
+    if i%model._nphases2>0:
+      peso[i][0]= model._qincrements[ i// model._nphases2][ (i%model._nphases2)-1]
+    if i%model._nphases2==0:
       peso[i][0]= 10**12
-    if i//model._nphases >0:
-      peso[i][1]= model._qincrements[ (i// model._nphases)-1][ (i%model._nphases)]
-    if i//model._nphases == 0:
+    if i//model._nphases2 >0:
+      peso[i][1]= model._qincrements[ (i// model._nphases2)-1][ (i%model._nphases2)]
+    if i//model._nphases2 == 0:
       peso[i][1]= 10**12
     i=i+1
   return peso
@@ -831,12 +759,10 @@ class Graph:
   def addEdge(self,u,v):
     self.graph[u].append(v)
 	# Function to print a BFS of graph
-  def BFS(self, s,peso,model):
+  def BFS(self, s,model):
 		# Mark all the vertices as not visited
-    print(max(self.graph)+1)
     caminos = [0] * (max(self.graph)+1)
     visited = [False] * (max(self.graph) + 1)
-    print(visited)
     max_q   = (-1)
     for cons in model._infocons:
       if cons[1] == '*':
@@ -863,21 +789,21 @@ class Graph:
       for i in self.graph[s]:
         if i> max(self.graph):
           break
-        if i//model._nphases==s//model._nphases:
+        if i//model._nphases2==s//model._nphases2:
           
-          if  caminos[s] + peso[i][0]< max_q or caminos[s]==0:
+          if  caminos[s] + model._npeso[i][0]< max_q or caminos[s]==0:
             
-            camino= caminos[s] + peso[i][0]
+            camino= caminos[s] + model._npeso[i][0]
             if camino<caminos[i] or caminos[i]==0:
               
               caminos[i]= camino
               queue.append(i)
               visited[i] = True
             
-        if i%model._nphases== s%model._nphases:
+        if i%model._nphases2== s%model._nphases2:
           
-          if  caminos[s] - peso[i][1]< max_q or caminos[s]==0:
-            camino= caminos[s] + peso[i][1]
+          if  caminos[s] - model._npeso[i][1]< max_q or caminos[s]==0:
+            camino= caminos[s] + model._npeso[i][1]
             if camino<caminos[i] or caminos[i]==0:
               caminos[i]= camino
               queue.append(i)
@@ -887,7 +813,147 @@ class Graph:
     return visited     
   
 #########################################################################################################################################################################################################################################
+def cortar(model,instancia):
+  visited= model._graph.BFS(0,model)
+  increment_max=0
+  norma_max=0
+  max_benches=0
+  max_phases=0
+  for i in range(len(visited)):
+    if visited[i]== True:
+      norma= (i%model._nphases2) + (i//model._nphases2)
+      benches=(i//model._nphases2)
+      phases=(i%model._nphases2) 
+      if norma> norma_max:
+        increment_max=i
+        norma_max=norma
+      if phases> max_phases:
+        max_phases= phases
+      if benches> max_benches:
+       max_benches= benches
+    #if visited[i]==False:
+     # model._bincrements[i//model._nphases][i%model._nphases]= []
+      #model._qincrements[i//model._nphases][i%model._nphases]= 0
+      #model._oincrements[i//model._nphases][i%model._nphases]= 0
+  model._bincrements= model._bincrements[:max_benches+1]
+  for x in model._bincrements:
+    x= x[:max_phases+1]
+  model._nphases= max_phases +1
+  model._nbenches= max_benches +1
+  if model._bench_min ==0:
+    model._nbenches= max_benches+ 1
+  model._blocks=[]
+  for set in model._bincrements:
+    for set2 in set:
+      model._blocks+= set2
 
+############################################################################################################################################################################################################
+def cortar(model,instancia):
+  visited= model._graph.BFS(0,model)
+  increment_max=0
+  norma_max=0
+  max_benches=0
+  max_phases=0
+  for i in range(len(visited)):
+    if visited[i]== True:
+      norma= (i%model._nphases2) + (i//model._nphases2)
+      benches=(i//model._nphases2)
+      phases=(i%model._nphases2) 
+      if norma> norma_max:
+        increment_max=i
+        norma_max=norma
+      if phases> max_phases:
+        max_phases= phases
+      if benches> max_benches:
+       max_benches= benches
+    #if visited[i]==False:
+     # model._bincrements[i//model._nphases][i%model._nphases]= []
+      #model._qincrements[i//model._nphases][i%model._nphases]= 0
+      #model._oincrements[i//model._nphases][i%model._nphases]= 0
+  model._bincrements= model._bincrements[:max_benches+1]
+  for x in model._bincrements:
+    x= x[:max_phases+1]
+  model._nphases= max_phases +1
+  model._nbenches= max_benches +1
+  if model._bench_min ==0:
+    model._nbenches= max_benches+ 1
+  model._blocks=[]
+  for set in model._bincrements:
+    for set2 in set:
+      model._blocks+= set2
+#########################################################################################################################
+def add(model,instancia):
+  reached=[]
+  sin_pre=[]
+  visited=[]
+  visited_f=[]
+  for i in range(model._nbenches2):
+    for p in range(model._nphases2):
+      if model._qincrements[i][p]==0:
+        reached.append([i,p])
+  for n in reached:
+    bench= n[0]-1
+    phase= n[1]-1
+    j=0
+    for y in reached:
+      if y[0]==bench:
+        break
+      if y[1]==phase:
+        break
+      j=j+1
+    if j== len(reached):
+      sin_pre.append(n)
+  for x in reached:
+    nodo= x[1] + x[0]* model._nphases2
+    print("nodo",nodo)
+    visited.append( model._graph.BFS(nodo,model))
+  for i in range(len(visited[0])):
+    visited2=False
+    for x in visited:
+      visited2= x[i] or visited2
+    visited_f.append(visited2)
+  visited= visited_f
+  norma_max=0
+  max_phases=0
+  max_benches=0
+  print(visited)
+  for i in range(len(visited)):
+    if visited[i]== True:
+      norma= (i%model._nphases2) + (i//model._nphases2)
+      benches=(i//model._nphases2)
+      phases=(i%model._nphases2) 
+      if norma> norma_max:
+        increment_max=i
+        norma_max=norma
+      if phases> max_phases:
+        max_phases= phases
+      if benches> max_benches:
+       max_benches= benches
+    #if visited[i]==False:
+     # model._bincrements[i//model._nphases][i%model._nphases]= []
+      #model._qincrements[i//model._nphases][i%model._nphases]= 0
+      #model._oincrements[i//model._nphases][i%model._nphases]= 0
+  index=1
+  index2=1
+  max_p= [max_phases].copy()
+  max_b= [max_benches].copy()
+  while max_phases>model._nphases:
+    for i in range(model._bincrements):
+      model._bincrements[i].append(model._bincrements2[i][model._nphases +index2])
+      index2 += index2
+      max_phases-=max_phases
+  while max_benches>model._nbenches:
+    model._bincrements.append(model._bincrements2[model._nbenches+ index][:max_phases+1])
+    max_benches -= max_benches
+    index=index+1
+  model._blocks=[]
+  model._nphases= max_p[0]+1
+  model._nbenches= max_b[0]+1
+  for set in model._bincrements:
+    for set2 in set:
+      model._blocks+= set2
+  return visited
+############################################################################################################################
 def create_arrays_y(y,model,instancia):
   u_array = calculate_u(y,model,instancia)
   q_bar_array = [0 for i in range(len(u_array))]
