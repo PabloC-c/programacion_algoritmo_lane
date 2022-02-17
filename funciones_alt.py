@@ -289,14 +289,18 @@ def codify_y(y0,y,t,model,instancia):
 #########################################################################################################################################################################################################################################
 #Funcion solver
 
-def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary = False, parada = 'concava'):
+def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary = False, previous = None, parada = 'concava'):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
   Q0  = sum(model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases))
   Q_k = Q0
-  aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
-  aux_v_array  = [0 for i in range(5,-1,-1)]
+  if previous is not None:
+    aux_q_array = previous[0]
+    aux_v_array = previous[1]    
+  else:
+    aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
+    aux_v_array = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
   print('Creacion modelo')  
   create_model2(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full, x_binary)
@@ -503,7 +507,8 @@ def calculate_u(y,model,instancia):
 
 #########################################################################################################################################################################################################################################
 
-def check_factibility(instancia,model,y):
+def check_feasibility(instancia,model,y):
+  x_binary = True
   tf = max(y[2])
   t0 = min(y[2])
   data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
@@ -515,7 +520,6 @@ def check_factibility(instancia,model,y):
   Vf=0
   Va=0
   tol = 10**(-3)
-  
   if t0 == 0:
     tf = tf + 1
   data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
@@ -529,6 +533,15 @@ def check_factibility(instancia,model,y):
   output = []
   aux_phases   = [0 for p in range(model._nphases)]
   p_increments = [aux_phases[:] for i in range(model._nbenches)]
+  ncol = y.shape[1]
+  if ncol<5:
+    b_benches = []
+    b_phases  = []
+    for b in y[0]:
+      b_benches.append(instancia.iloc[int(b),model._benches])
+      b_phases.append(instancia.iloc[int(b),model._phases])
+    y[4] = b_benches
+    y[5] = b_phases  
   for i in range(int(tf)):
     restricciones=[]
     problem = [i]
@@ -575,10 +588,14 @@ def check_factibility(instancia,model,y):
           value_0 = y_0[3].sum()
           p_increments[index][p] += value_0
           b_list = y_jp[0].unique()
+          if x_binary and value_0 < 1 - tol:
+            x_binary = False
           for b in b_list:
             if b != b0:
               y_aux = y_jp[y_jp[0] == b]
               value = y_aux[3].sum()
+              if x_binary and value < 1 - tol:
+                x_binary = False
               if value - value_0 > tol or value - value_0 < -tol:
                 problem.append('Bloque no consistente')
       index += 1              
@@ -587,6 +604,8 @@ def check_factibility(instancia,model,y):
     for j in range(model._nbenches):
       for p in range(model._nphases):
         if model._oincrements[j][p] > 0:
+          if x_binary and p_increments[j][p] < 1 - tol:
+            x_binary = False
           if p_increments[j][p] > 1 + tol:
             problem.append('Incremento excede su tonelaje')
           if p_increments[j][p] > tol:
@@ -607,75 +626,11 @@ def check_factibility(instancia,model,y):
   if model._rbenches:
       p_increments.reverse()
   tabla= pd.DataFrame(p_increments) 
-  return feasible,output,tabla,df,df3 
+  return feasible,output,tabla,df,df3,x_binary
   #hacer tablas:
   #Incremenntos: Tabla lo que saco por incremento por periodo
   #Valores: 3 columnas por año, van, lo que aporta el van sin decontar, con la tasa de decuento, cuanto hay acumulado
 
-def Tablas(model,instancia,y):
-  tf = max(y[2])
-  t0 = min(y[2])
-  if t0 == 0:
-    tf = tf + 1
-  data= ["Valor previo","Aporte sin descuento", "Aporte con descuento", "Valor actual"]
-  data3=[]
-  for i in range(len(model._infocons)):
-    data3.append("Restriccion de capacidad" + str(i))
-  data2= range(model._nincrements)
-  df= pd.DataFrame(columns=data,index=range(int(tf)))
-  df2=pd.DataFrame(columns=data2,index=range(int(tf)))
-  df3=pd.DataFrame(columns=data3,index=range(int(tf)))
-  Vf=0
-  Va=0
-  for i in range(int(tf)):
-    if t0 == 1:
-      t = i+1
-    else:
-      t = i 
-    restricciones=[]
-    incrementos=[]
-    A=0
-    Ad=0
-    y_t = y[y[2] == t]
-    for q in range(len(y_t)):
-      b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
-      A = A + val_y* instancia[model._infoobj[d]].iloc[b]
-    for cons in model._infocons:
-      r = 0
-      if cons[1] == '*':
-          for q in range(len(y_t)):
-            b,val_y = int(y_t[0].iloc[q]),y_t[3].iloc[q]
-            r += val_y * instancia[cons[0]].iloc[b]
-          restricciones.append( "*"+str(r) + "" + "<=" + "" + str(cons[3]))
-      else:
-          for q in range(len(y_t)):
-            b,d,val_y =  int(y_t[0].iloc[q]),int(y_t[1].iloc[q]),y_t[3].iloc[q]
-            if d == int(cons[1]):
-              r += val_y * instancia[cons[0]].iloc[b]
-          restricciones.append( "s"+str(r) + "" + "<=" + "" + str(cons[3]))
-    for j in range(model._nincrements):
-        y_j = y_t[y_t[4] == j]
-        if len(y_j) > 0:
-          b0     = y_j[0].iloc[0]
-          y_0    = y_j[y_j[0] == b0]
-          prom_0 = y_0[3].sum()
-          incrementos.append(prom_0)
-        else:
-          incrementos.append(0)
-    df3.iloc[i]= restricciones
-    df2.iloc[i]= incrementos
-    Ad= A*(model._discount_rate)**i
-    Vf= Va + Ad
-    df.iloc[i]= [Va,A,Ad,Vf]
-    Va=Vf
-  return df,df2,df3
-
-def write_table(df,directory,Header=False, Index =False):
-  f = open(directory, "w")
-  df_string = df.to_string(header = Header, index = Index)
-  f.write(df_string)
-  f.close()
-  
 #########################################################################################################################################################################################################################################
 
 def last_increment(y0,instancia,model):
