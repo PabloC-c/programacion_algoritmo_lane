@@ -33,7 +33,7 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False, x_binary = False)   
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =True, x_binary = False)   
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,pincrements,df,df3 = check_factibility(instancia,model,y)

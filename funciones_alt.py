@@ -124,12 +124,16 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     vlist = vlist*model._discount_rate
     #Se crea variable auxiliar
     q_var = model.addVar(lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
+    v_var = model.addVar(vtype= GRB.CONTINUOUS,name="q_var")
+    switch= model.addVar(vtype=GRB.BINARY,name="switch")
+    model.addConstr(switch <=  sum(x[i,p] for i in  range(model._nbenches) for p in range(model._nphases))/(model._nbenches*model._nphases))
     #Se define la variable auxiliar como Q-q
     model.addConstr(q_var + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases)) == Q ,'aux_cons')
     #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
+    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)) + v_var*switch,GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
-    model.setPWLObj(q_var,qlist,vlist)
+    model.addGenConstrPWL(q_var, v_var, qlist,vlist, "myPWLConstr")
+    #model.setPWLObj(q_var,qlist,vlist)
   #Anadimos las restricciones
   #Restricciones de capacidad
   if flag_full:
@@ -321,25 +325,25 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
     print("Segundo ciclo")
     while Q_k > 10**(-3) and t <= model._nperiods:
-      if t==1:
-        cortar(model,instancia)
+      #if t==1:
+        #cortar(model,instancia)
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
       print('Comienzo optimizacion')
       model.optimize()
-      if t>1:
-        a=add(model,instancia)
-        condition=True
-        for x in a:
-          condition= condition and x
-        if condition==True:
-          print(model._bincrements2== model._bincrements)
-          model._bincrements= model._bincrements2.copy()
-          blocks=[]
-          for set in model._bincrements2:
-            for set2 in set:
-              blocks += set2
-          print(model._blocks==blocks)
-          model._blocks=blocks
+      #if t>1:
+        #a=add(model,instancia)
+        #condition=True
+        #for x in a:
+        #  condition= condition and x
+        #if condition==True:
+         # print(model._bincrements2== model._bincrements)
+          #model._bincrements= model._bincrements2.copy()
+          #blocks=[]
+          #for set in model._bincrements2:
+           # for set2 in set:
+            #  blocks += set2
+          #print(model._blocks==blocks)
+          #model._blocks=blocks
       print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
