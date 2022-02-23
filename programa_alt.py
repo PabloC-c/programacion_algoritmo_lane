@@ -13,7 +13,7 @@ direcciones = [direcciones_pablo[indice]]
 
 for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
-  model.setParam("MIPFocus",2)
+  #model.setParam("MIPFocus",2)
   model.setParam('NumericFocus',3)
   directory = valor[1]
   directory = directory[33:-6]
@@ -33,14 +33,14 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =True, x_binary = False)   
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False, x_binary = False)   
   writer_y(directory_y,yf)
   y = read_y(directory_y)
-  feasible,output,pincrements,df,df3 = check_factibility(instancia,model,y)
+  feasible,output,pincrements,df,df3 = check_feasibility(instancia,model,y)
   print('Feasible',feasible)
-  write_table(df,directory_table1)
-  write_table(pincrements,directory_table2)
-  write_table(df3,directory_table3)
-  writer_v_k(directory_v,v_array)
-  writer_times(directory_times,times)
+  #write_table(df,directory_table1)
+  #write_table(pincrements,directory_table2)
+  #write_table(df3,directory_table3)
+  #writer_v_k(directory_v,v_array)
+  #writer_times(directory_times,times)
   print('Siguiente problema')

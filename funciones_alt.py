@@ -917,7 +917,7 @@ def create_arrays_y(y,model,instancia):
   u_array = calculate_u(y,model,instancia)
   q_bar_array = [0 for i in range(len(u_array))]
   tf = int(max(y[2]))
-  t0 = min(y[2])
+  t0 = int(min(y[2]))
   aux     = [False for p in range(model._nphases)]
   visited = [aux[:] for i in range(model._nbenches)]
   for t in range(t0,tf+1):

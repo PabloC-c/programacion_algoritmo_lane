@@ -77,9 +77,9 @@ def create_model(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fal
   mu = model.addVars(model._nincrements,obj = 0, vtype = GRB.BINARY, name = 'mu')
   #Anadimos variables para los intervalos
   if x_binary:
-    x = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype = GRB.BINARY,name="x")
+    x = model.addVars(model._nincrements,obj = 0,lb=0,ub=1,vtype = GRB.BINARY,name="x")
   else:
-    x = model.addVars(model._nbenches,model._nphases,obj = 0,lb=0,ub=1,vtype = GRB.CONTINUOUS,name="x")
+    x = model.addVars(model._nincrements,obj = 0,lb=0,ub=1,vtype = GRB.CONTINUOUS,name="x")
   #Anadimos la funcion objetivo
   #Opcion 1: Piecewise Linear de Gurobi
   if option == 'pwl':
@@ -248,21 +248,25 @@ def copy_model(model):
 #########################################################################################################################################################################################################################################
 #Funcion solver
 
-def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = False, new_model = False):
+def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = False, new_model = False, previous = None):
   model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
   Q0  = sum(model._oincrements[i] for i in range(model._nincrements))
   Q_k = Q0
-  aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
-  aux_v_array  = [0 for i in range(5,-1,-1)]
+  if previous is not None:
+    aux_q_array = previous[0]
+    aux_v_array = previous[1]    
+  else:
+    aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
+    aux_v_array = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
   print('Creacion modelo')  
   create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full, x_binary)
   print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
-  v_array = [[0 for i in range(model._nperiods+1)]]
-  q_array = [[[(Q0*i)/model._nperiods] for i in range(model._nperiods,-1,-1)]]
+  v_array = [aux_v_array]
+  q_array = [aux_q_array]
   #Se inicializa k
   k = 1
   #Arreglos para retornar la iteracion anterior al final del algoritmo
@@ -343,6 +347,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if vk0>vk1 and k> 2:
         #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
+        if flag_full:
+          y0_array = postoptimizacion(model,instancia,y0_array)
         return y0_array,x0_array,times_k,q_array,v_array
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
     x0_array = x_array
@@ -358,8 +364,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     if new_model:
       model = copy_model(model)
       create_model(model,instancia,Q_k,1,aux_v_array,aux_q_array,option, flag_full)
-    model.reset()
-    model.setParam('OutputFlag',1)
+      model.reset()
  
 
 #########################################################################################################################################################################################################################################
@@ -411,7 +416,7 @@ def calculate_u(y,model,instancia):
 
 #########################################################################################################################################################################################################################################
 
-def check_factibility(instancia,model,y):
+def check_feasibility(instancia,model,y):
   binary_x = True
   tol = 10**(-3)
   tf = max(y[2])
@@ -455,7 +460,8 @@ def check_factibility(instancia,model,y):
         b0     = y_j[0].iloc[0]
         y_0    = y_j[y_j[0] == b0]
         prom_0 = y_0[3].sum()
-        if prom_0 < 1 - tol:
+        print(prom_0)
+        if binary_x and prom_0 < 1 - tol:
           binary_x = False
         p_increments[j] += prom_0
         b_list = y_j[0].unique()
@@ -463,7 +469,7 @@ def check_factibility(instancia,model,y):
           if b != b0:
             y_aux = y_j[y_j[0] == b]
             prom  = y_aux[3].sum()
-            if prom < 1 - tol:
+            if binary_x and prom < 1 - tol:
               binary_x = False
             if prom - prom_0 > tol or prom - prom_0 < -tol:
               problem.append('Bloque '+str(b)+' no consistente con su incremento '+str(j))
@@ -615,29 +621,48 @@ def cut_mine(model):
     
 ##########
 
-def postoptimizacion(model,instancia,x,y):  
-  soly =pd.DataFrame(y)
-  ultimo_incremento = model._nincrements-1
-  var = True
-  while ultimo_incremento > 0 and var:
-    for i in range(len(x)-1,-1,-1):
-      if x[i]!=0:
-        ultimo_incremento =i
-        break
-    sum=0
-    for b in model._bincrements[ultimo_incremento]:
+def postoptimizacion(model,instancia,y):
+  soly = pd.DataFrame(y)
+  while True:
+    valor_final = 0
+    i_final = int(max(soly[4]))
+    for b in model._bincrements[i_final]:
       for d in range(model._ndestinations):
-        sum = sum+ instancia[model._infoobj[d]].iloc[b]
-    if sum<0:
-      for q in range(len(soly)):
-        if soly.at[q,4] == ultimo_incremento:
-           soly.at[q,3]=0
-      x[ultimo_incremento]=0
-    else: 
-      var = False
-  a= np.array(calculate_u(soly,model,instancia))
-  valor_obj= np.sum(a)
-  return [soly,valor_obj]
-          
-        
+        valor_final += instancia[model._infoobj[d]].iloc[b]
+    if valor_final<=0:
+      soly = soly[soly[4] < i_final]
+    else:
+      break
+  soly = soly.to_numpy()
+  return soly
+
+##########################################################
+
+def create_arrays_y(y,model,instancia):
+  u_array = calculate_u(y,model,instancia)
+  q_bar_array = [0 for i in range(len(u_array))]
+  tf = int(max(y[2]))
+  t0 = int(min(y[2]))
+  for t in range(t0,tf+1):
+    visited = [False for i in range(model._nincrements)]
+    y_t = y[y[2] == t]
+    blocks = y_t[0].unique()
+    for b in blocks:
+      i = instancia.iloc[int(b),-1]
+      if not visited[i]:
+        y_b   = y_t[y_t[0] == b]
+        value = y_b[3].sum()
+        if t0 == 0:      
+          q_bar_array[t] += value*model._oincrements[i]
+        else:
+          q_bar_array[t-1] += value*model._oincrements[i]
+        visited[i] = True
+  Q0      = sum(model._oincrements[i] for i in range(model._nincrements))
+  V_Q_t   = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
+  #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
+  aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)] 
+  aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
+  aux_v_array.append(0)
+  aux_q_array.append([0])
+  return aux_q_array,aux_v_array
   

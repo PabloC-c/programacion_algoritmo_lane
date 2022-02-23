@@ -1,19 +1,19 @@
-from funciones_alt import *
+from funciones import *
 #Direcciones: pares de la forma (direccion archivo .prob, direccion archivo .blocks)
 #Direcctiorio donde se corre /home/pcarrascoc/practica/Codigo/
 direcciones_pablo = [('../../Instancias/mines/chaiten_4phases_f0.prob','../../Instancias/incrementsBlocks/chaiten_inc.blocks'),('../../Instancias/mines/kd_4phases_f0.prob','../../Instancias/incrementsBlocks/kd_inc.blocks'),('../../Instancias/mines/marvinml_4phases_f0.prob','../../Instancias/incrementsBlocks/marvinml_inc.blocks'),('../../Instancias/mines/palomo25_4phases_f0.prob','../../Instancias/incrementsBlocks/palomo25_inc.blocks')]
 #direcciones = direcciones_pablo
 #data = {0:["NDESTINATIONS", "NPERIODS", "DISCOUNT_RATE", "NCONSTRAINTS", "CONSTRAINT","CONSTRAINT","OBJECTIVE","OBJETIVO","INCREMENTS"],1:["2","20","0.1","2","0 4 P * L 2","1 4 P 1 L 1","0 5","1 6","2"]}
 #bloques= {0:[0,1,2,3,4],1:[0,0,1,1,2],2:[1,1,1,1,2],3:[1,1,1,1,2],4:[1,1,1,1,2],5:[1,1,-2,1,2],6:[1,1,-2,1,2],7:[1,1,1,1,2],8:[1,1,1,1,2],9:[0,0,1,1,2]}
-direcciones =  [direcciones_pablo[1]]
+direcciones =  [direcciones_pablo[0]]
 #direcciones = [(data,bloques)]
 #resultados           = []
 #resultados_flag_full = []
 
 prints = False
-soluciones_prev = False
+soluciones_prev = True
 filtrado = False
-random = True
+random = False
 
 if prints:
   for valor in direcciones:
@@ -60,12 +60,12 @@ if prints:
 elif soluciones_prev:
   for valor in direcciones:
     model,info,instancia = reader(valor[0],valor[1])
-    directory1 = 'marvin_marvin_4phases_f0_default.TOPOSORT.ip.sol'
+    directory1 = 'chaiten_chaiten_4phases_f0_default.TOPOSORT.ip.sol'
     #directory2 = 'palomo_palomo25_4phases_f0_default.BZ.lp.sol'
     directory1 = '../../Instancias/sols/'+directory1 
     #directory2 = '../../Instancias/sols/'+directory2
     y_integer = read_y(directory1)
-    feasible,output,p_increments,binary_x = check_factibility(instancia,model,y_integer)
+    feasible,output,p_increments,binary_x = check_feasibility(instancia,model,y_integer)
     print('Factible: ',feasible)
     print('Violaciones: ',output)
     print('x binario:' ,binary_x)

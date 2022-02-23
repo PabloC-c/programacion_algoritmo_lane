@@ -23,34 +23,26 @@ for valor in direcciones:
   directory_table1 = '../../sols2'+ directory[:-1]+'_values.txt'
   directory_table2 = '../../sols2'+ directory[:-1]+'_increments.txt'
   directory_table3 = '../../sols2'+ directory[:-1]+'_constraints.txt'
-  #directory_prev = valor[0]
-  #directory_prev = directory_prev[23:-5]
-  #array = directory_prev.split('_')
-  #directory_prev = array[0]
-  #directory_prev = directory_prev[:-2]
-  #for string in array:
-  #  directory_prev += '_'+string
-  #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
-  #y_integer = read_y(final_ip)
-  #last_increment(y_integer,instancia,model)
-  flag =True
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag)
+  directory_prev = valor[0]
+  directory_prev = directory_prev[23:-5]
+  array = directory_prev.split('_')
+  if array[0] == 'palomo25':
+    array[0] = 'palomo'
+  final_ip = '../../Instancias/sols/'+array[0]+'_'+directory_prev+'_default.TOPOSORT.ip.sol'
+  y_integer = read_y(final_ip)
+  aux_q_array,aux_v_array = create_arrays_y(y_integer,model,instancia)
+  flag = True
+  previous = None#[aux_q_array,aux_v_array]
+  last_increment(y_integer,instancia,model)
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag,x_binary = False, new_model = False, previous = previous)
   writer_y(directory_y,yf)
   y = read_y(directory_y)
-  feasible,output,pincrements = check_factibility(instancia,model,y)
+  feasible,output,p_increments,binary_x = check_feasibility(instancia,model,y)
   print('Feasible',feasible)
-  df1,df2,df3 = Tablas(model,instancia,y)
-  write_table(df1,directory_table1)
-  write_table(df2.T,directory_table2)
-  write_table(df3,directory_table3)
-  writer_v_k(directory_v,v_array)
-  writer_times(directory_times,times)
-  if flag==True:
-    original = sum(calculate_u(pd.DataFrame(yf),model,instancia))
-    soly = postoptimizacion(model,instancia,xf,yf)
-    #print("mejor postoptimizacion : ", soly[0] != yf)
-    #if sol != yf:
-    print("F. Obj. Original : ", original)
-    print("F. Obj. Postopt : ", soly[1]) 
-  print('Siguiente problema')
+  #df1,df2,df3 = Tablas(model,instancia,y)
+  #write_table(df1,directory_table1)
+  #write_table(df2.T,directory_table2)
+  #write_table(df3,directory_table3)
+  #writer_v_k(directory_v,v_array)
+  #writer_times(directory_times,times)
   
