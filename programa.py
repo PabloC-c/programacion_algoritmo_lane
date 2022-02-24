@@ -34,7 +34,7 @@ for valor in direcciones:
   flag = True
   previous = None#[aux_q_array,aux_v_array]
   last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag,x_binary = False, new_model = False, previous = previous)
+  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag,x_binary = False, new_model = False, previous = previous , parada = "concava")
   writer_y(directory_y,yf)
   y = read_y(directory_y)
   feasible,output,p_increments,binary_x = check_feasibility(instancia,model,y)

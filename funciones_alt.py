@@ -420,21 +420,20 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
           #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
           return y0_array,x0_array,times_k,q_array,v_array
     if parada == 'cauchy':
-       epsilon = vk1/10
+       epsilon = vk1/100
        N = int(k/2)
        print("k =" , k)
        aux_v = []
-       for i in range(N,len(v_array)):
+       for i in range(len(v_array)):
          aux_v.append(v_array[i][0])
-       if k>3:
-         M = max(aux_v)
-         nmax = 0
-         for m in aux_v:
-           if abs(M-m)<=M/100:
-             nmax +=1
-         if nmax>1: 
-           print('máximo =', M)
-           return y0_array,x0_array,times_k,q_array,v_array
+       M = max(aux_v)
+       if k==10:
+         for i in range(len(aux_v)):
+           if aux_v[i] == M:
+             print("No converge.")
+             print("Máximo encontrado :", M , " Iteracion :",i)
+             return y0_array,x0_array,times_k,q_array,v_array
+       elif k>3:
          for i in range(N,len(v_array)):
            for j in range(N,len(v_array)):
              dif = abs(v_array[i][0]-v_array[j][0])
@@ -442,6 +441,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
              if dif > epsilon:
                break
            else:
+             print("converge al valor:",aux_v[-1], " Iteracion :",k)
+             #print(v_array)
              return y0_array,x0_array,times_k,q_array,v_array
            break
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
