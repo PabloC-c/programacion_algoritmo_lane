@@ -43,13 +43,22 @@ if prints:
         nombre_mina = m
     print(directory)
     print(nombre_mina)
-    modelo = "funciones"
+    modelo = "funciones_alt"
+    flag = True
     if modelo == "funciones":
-      directory_times = '../../sols2'+directory[:-1]+'_times.txt'
-      directory_v = '../../sols2'+directory[:-1]+'_v_k.txt'
+      if flag:
+        carpeta = "sols2_restr"
+      else:
+        carpeta = "sols2_free"
+      directory_times = '../../'+carpeta+directory[:-1]+'_times.txt'
+      directory_v = '../../'+carpeta+directory[:-1]+'_v_k.txt'
     if modelo == "funciones_alt":
-      directory_times = '../../sols_model2_free'+directory[:-1]+'_times.txt'
-      directory_v = '../../sols_model2_free'+directory[:-1]+'_v_k.txt'
+      if flag:
+        carpeta = "sols_model2_restr"
+      else:
+        carpeta = "sols_model2_free"       
+      directory_times = '../../'+carpeta+directory[:-1]+'_times.txt'
+      directory_v = '../../'+carpeta+directory[:-1]+'_v_k.txt'
     #directory = '../../sols2' + directory + 'txt' 
     #y = read_y(directory)
     v = read_y(directory_v)
@@ -67,7 +76,7 @@ if prints:
       ax1.plot(x,v,'-o',linestyle='solid')
     else:
       ax1.plot(x,v,'-o')
-    ax1.set_title('Valor inicial estimado de la Mina ' + nombre_mina)
+    ax1.set_title('Valor inicial estimado de la Mina ' + nombre_mina + ' [$1.000.000]')
     ax1.set_xlabel('iteracion k')
     ax1.set_ylabel('V_0(k)')
     fig1.savefig(directory_v[:-3]+'.png')

@@ -272,6 +272,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
   #Arreglos para retornar la iteracion anterior al final del algoritmo
   x0_array = []
   y0_array = []
+  #Arreglos para Cauchy
+  M = 0
   #Tiempos de ejecucion
   times_k  = []
   print('Primer ciclo')
@@ -329,8 +331,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
     aux_v_array.append(0)
     aux_q_array.append([0])   
-    print('Arreglo de V:', aux_v_array)
-    print('Arreglo de Q:', aux_q_array)
+    #print('Arreglo de V:', aux_v_array)
+    #print('Arreglo de Q:', aux_q_array)
     #Se guardan los vectores de V y Q de la iteracion k
     v_array.append(aux_v_array)
     q_array.append(aux_q_array)
@@ -342,30 +344,31 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     #Se revisa el criterio de parada
     vk0 = v_array[-2][0]
     vk1 = v_array[-1][0]
-    print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
-    print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if parada == 'concava':
       print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
       print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
       # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
       if vk1 <= vk0 and k > 2:
+          if flag_full:
+            y0_array = postoptimizacion(model,instancia,y0_array)
+            return y0_array,x0_array,times_k,q_array,v_array
           #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
-          return y0_array,x0_array,times_k,q_array,v_array
+          else:
+            return y0_array,x0_array,times_k,q_array,v_array
     if parada == 'cauchy':
        epsilon = vk1/100
        N = int(k/2)
        print("k =" , k)
-       aux_v = []
-       for i in range(len(v_array)):
-         aux_v.append(v_array[i][0])
-       M = max(aux_v)
+       if v_array[-1][0] > M:
+          M = v_array[-1][0]
+          x0_max,y0_max = x_array,y_array
+          i_max = k
        if k==10:
-         for i in range(len(aux_v)):
-           if aux_v[i] == M:
-             print("No converge.")
-             print("Máximo encontrado :", M , " Iteracion :",i)
-             return y0_array,x0_array,times_k,q_array,v_array
+         print("No converge.")
+         print("Máximo encontrado :", M , " Iteracion :",i_max)
+         x0_array,y0_array = x0_max,y0_max
+         return y0_array,x0_array,times_k,q_array,v_array
        elif k>3:
          for i in range(N,len(v_array)):
            for j in range(N,len(v_array)):
@@ -374,8 +377,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
              if dif > epsilon:
                break
            else:
-             print("converge al valor:",aux_v[-1], " Iteracion :",k)
-             #print(v_array)
+             print("converge al valor:", v_array[-1][0], " Iteracion :",k)
+             x0_array, y0_array = x_array,y_array 
              return y0_array,x0_array,times_k,q_array,v_array
            break
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
@@ -488,7 +491,7 @@ def check_feasibility(instancia,model,y):
         b0     = y_j[0].iloc[0]
         y_0    = y_j[y_j[0] == b0]
         prom_0 = y_0[3].sum()
-        print(prom_0)
+        #print(prom_0)
         if binary_x and prom_0 < 1 - tol:
           binary_x = False
         p_increments[j] += prom_0

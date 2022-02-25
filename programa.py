@@ -2,6 +2,8 @@ from funciones import *
 import sys
 
 indice = int(sys.argv[1])
+flagfull = int(sys.argv[2])
+
 #Direcciones: pares de la forma (direccion archivo .prob, direccion archivo .blocks)
 #Direcctiorio donde se corre /home/pcarrascoc/practica/Codigo/
 direcciones_pablo = [('../../Instancias/mines/kd_4phases_f0.prob','../../Instancias/incrementsBlocks/kd_inc.blocks'),('../../Instancias/mines/chaiten_4phases_f0.prob','../../Instancias/incrementsBlocks/chaiten_inc.blocks'),('../../Instancias/mines/marvinml_4phases_f0.prob','../../Instancias/incrementsBlocks/marvinml_inc.blocks'),('../../Instancias/mines/palomo25_4phases_f0.prob','../../Instancias/incrementsBlocks/palomo25_inc.blocks')]
@@ -15,14 +17,19 @@ for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
   cut_mine(model)
   model.setParam('NumericFocus',3)
+  flag = bool(flagfull)
+  if flag:
+    carpeta = "sols2_restr"
+  else:
+    carpeta = "sols2_free"
   directory = valor[1]
   directory = directory[33:-6]
-  directory_times  = '../../sols2'+ directory[:-1]+'_times.txt'
-  directory_v      = '../../sols2'+ directory[:-1]+'_v_k.txt'
-  directory_y      = '../../sols2'+ directory + 'txt'
-  directory_table1 = '../../sols2'+ directory[:-1]+'_values.txt'
-  directory_table2 = '../../sols2'+ directory[:-1]+'_increments.txt'
-  directory_table3 = '../../sols2'+ directory[:-1]+'_constraints.txt'
+  directory_times  = '../../'+carpeta+ directory[:-1]+'_times.txt'
+  directory_v      = '../../'+carpeta+ directory[:-1]+'_v_k.txt'
+  directory_y      = '../../'+carpeta+ directory + 'txt'
+  directory_table1 = '../../'+carpeta+ directory[:-1]+'_values.txt'
+  directory_table2 = '../../'+carpeta+ directory[:-1]+'_increments.txt'
+  directory_table3 = '../../'+carpeta+ directory[:-1]+'_constraints.txt'
   directory_prev = valor[0]
   directory_prev = directory_prev[23:-5]
   array = directory_prev.split('_')
@@ -31,18 +38,17 @@ for valor in direcciones:
   final_ip = '../../Instancias/sols/'+array[0]+'_'+directory_prev+'_default.TOPOSORT.ip.sol'
   y_integer = read_y(final_ip)
   aux_q_array,aux_v_array = create_arrays_y(y_integer,model,instancia)
-  flag = True
   previous = None#[aux_q_array,aux_v_array]
-  last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag,x_binary = False, new_model = False, previous = previous , parada = "concava")
-  writer_y(directory_y,yf)
+  #last_increment(y_integer,instancia,model)
+  y0_array,x0_array,times_k,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full = flag,x_binary = False, new_model = False, previous = previous , parada = "cauchy")
+  writer_y(directory_y,y0_array)
   y = read_y(directory_y)
   feasible,output,p_increments,binary_x = check_feasibility(instancia,model,y)
   print('Feasible',feasible)
-  #df1,df2,df3 = Tablas(model,instancia,y)
-  #write_table(df1,directory_table1)
-  #write_table(df2.T,directory_table2)
-  #write_table(df3,directory_table3)
-  #writer_v_k(directory_v,v_array)
-  #writer_times(directory_times,times)
+  df1,df2,df3 = Tablas(model,instancia,y)
+  write_table(df1,directory_table1)
+  write_table(df2.T,directory_table2)
+  write_table(df3,directory_table3)
+  writer_v_k(directory_v,v_array)
+  writer_times(directory_times,times_k)
   

@@ -313,6 +313,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
   #Arreglos para retornar la iteracion anterior al final del algoritmo
   x0_array = []
   y0_array = []
+  #Arreglos para Cauchy
+  M=0
   #Tiempos de ejecucion
   times_k  = []
   print('Primer ciclo')
@@ -412,27 +414,28 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     #Se revisa el criterio de parada
     vk0 = v_array[-2][0]
     vk1 = v_array[-1][0]
+    # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if parada == 'concava':
       print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
       print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
       # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
       if vk1 <= vk0 and k > 2:
-          #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
-          return y0_array,x0_array,times_k,q_array,v_array
+          if flag_full:
+            return y0_array,x0_array,times_k,q_array,v_array
+            #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
     if parada == 'cauchy':
        epsilon = vk1/100
        N = int(k/2)
        print("k =" , k)
-       aux_v = []
-       for i in range(len(v_array)):
-         aux_v.append(v_array[i][0])
-       M = max(aux_v)
+       if v_array[-1][0] > M:
+          M = v_array[-1][0]
+          x0_max,y0_max = x_array,y_array
+          i_max = k
        if k==10:
-         for i in range(len(aux_v)):
-           if aux_v[i] == M:
-             print("No converge.")
-             print("Máximo encontrado :", M , " Iteracion :",i)
-             return y0_array,x0_array,times_k,q_array,v_array
+         print("No converge.")
+         print("Máximo encontrado :", M , " Iteracion :",i_max)
+         x0_array,y0_array = x0_max,y0_max
+         return y0_array,x0_array,times_k,q_array,v_array
        elif k>3:
          for i in range(N,len(v_array)):
            for j in range(N,len(v_array)):
@@ -441,8 +444,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
              if dif > epsilon:
                break
            else:
-             print("converge al valor:",aux_v[-1], " Iteracion :",k)
-             #print(v_array)
+             print("converge al valor:",v_array[-1][0], " Iteracion :",k)
+             x0_array, y0_array = x_array,y_array
              return y0_array,x0_array,times_k,q_array,v_array
            break
     #De no cumplir el criterio de parada se actualizan los valores anteriores a los valores actuales
@@ -463,7 +466,7 @@ def writer_y(directory,y):
   f = open(directory, "w")
   string = ''
   for var in y:
-    linea = ''
+    linea = ''  
     for valor in var:
       linea += str(valor) + ' '
     linea = linea[:-1] + '\n'
@@ -487,10 +490,17 @@ def writer_v_k(directory,v_array):
   f.write(string)
   f.close()
 
+def write_table(df,directory,Header=False, Index =False):
+  f = open(directory, "w")
+  df_string = df.to_string(header = Header, index = Index)
+  f.write(df_string)
+  f.close()
+  
 #########################################################################################################################################################################################################################################
 #Funcion que lee la solucion y
 def read_y(directory):
-  y = pd.read_csv(directory, header = None, sep = ' ',dtype = float)
+  #y = pd.read_csv(directory, header = None, delim_whitespace = True,dtype = float)
+  y = pd.read_csv(directory, header = None,sep = ' ',dtype = float)
   return y
 
 def calculate_u(y,model,instancia):
@@ -655,8 +665,6 @@ def last_increment(y0,instancia,model):
   return
 #########################################################################################################################################################################################################################################
  
-
-
 #########################################################################################################################################################################################################################################
 
 def sol_to_OMP(directory):

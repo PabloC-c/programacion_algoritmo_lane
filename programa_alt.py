@@ -2,6 +2,7 @@ from funciones_alt import *
 import sys
 
 indice = int(sys.argv[1])
+flagfull = int(sys.argv[2])
 #Direcciones: pares de la forma (direccion archivo .prob, direccion archivo .blocks)
 #Direcctiorio donde se corre /home/pcarrascoc/practica/Codigo/
 direcciones_pablo = [('../../Instancias/mines/kd_4phases_f0.prob','../../Instancias/incrementsBlocks/kd_inc.blocks'),('../../Instancias/mines/chaiten_4phases_f0.prob','../../Instancias/incrementsBlocks/chaiten_inc.blocks'),('../../Instancias/mines/marvinml_4phases_f0.prob','../../Instancias/incrementsBlocks/marvinml_inc.blocks'),('../../Instancias/mines/palomo25_4phases_f0.prob','../../Instancias/incrementsBlocks/palomo25_inc.blocks')]
@@ -15,14 +16,21 @@ for valor in direcciones:
   model,info,instancia = reader(valor[0],valor[1])
   #model.setParam("MIPFocus",2)
   model.setParam('NumericFocus',3)
+  flag = bool(flagfull)
   directory = valor[1]
   directory = directory[33:-6]
-  directory_times  = '../../sols_model2_free'+ directory[:-1]+'_times.txt'
-  directory_v      = '../../sols_model2_free'+ directory[:-1]+'_v_k.txt'
-  directory_y      = '../../sols_model2_free'+ directory + 'txt'
-  directory_table1 = '../../sols_model2_free'+ directory[:-1]+'_values.txt'
-  directory_table2 = '../../sols_model2_free'+ directory[:-1]+'_increments.txt'
-  directory_table3 = '../../sols_model2_free'+ directory[:-1]+'_constraints.txt'
+  if flag:
+    carpeta = "sols_model2_restr"
+  else:
+    carpeta = "sols_model2_free"
+  directory = valor[1]
+  directory = directory[33:-6]
+  directory_times  = '../../'+carpeta+ directory[:-1]+'_times.txt'
+  directory_v      = '../../'+carpeta+ directory[:-1]+'_v_k.txt'
+  directory_y      = '../../'+carpeta+ directory + 'txt'
+  directory_table1 = '../../'+carpeta+ directory[:-1]+'_values.txt'
+  directory_table2 = '../../'+carpeta+ directory[:-1]+'_increments.txt'
+  directory_table3 = '../../'+carpeta+ directory[:-1]+'_constraints.txt'
   #directory_prev = valor[0]
   #directory_prev = directory_prev[23:-5]
   #array = directory_prev.split('_')
@@ -33,14 +41,14 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  yf,xf,times,q_array,v_array = original_solver(model,instancia,option = 'pwl',flag_full =False, x_binary = False, parada = "cauchy")   
-  writer_y(directory_y,yf)
+  y0_array,x0_array,times_k,q_array,v_array= original_solver(model,instancia,option = 'pwl',flag_full =flag, x_binary = False, parada = "concava") 
+  writer_y(directory_y,y0_array)
   y = read_y(directory_y)
-  feasible,output,pincrements,df,df3 = check_feasibility(instancia,model,y)
+  feasible,output,tabla,df,df3,x_binary = check_feasibility(instancia,model,y)
   print('Feasible',feasible)
-  #write_table(df,directory_table1)
-  #write_table(pincrements,directory_table2)
-  #write_table(df3,directory_table3)
-  #writer_v_k(directory_v,v_array)
-  #writer_times(directory_times,times)
-  print('Siguiente problema')
+  write_table(df,directory_table1)
+  write_table(tabla,directory_table2)
+  write_table(df3,directory_table3)
+  writer_v_k(directory_v,v_array)
+  writer_times(directory_times,times_k)
+  #print('Siguiente problema')
