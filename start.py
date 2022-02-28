@@ -25,13 +25,13 @@ if ordenado == '1':
   model,info,instancia = reader(archivo_prob,archivo_blocks)
   cut_mine(model)
   model.setParam('NumericFocus',3)
-  y0_array,x0_array,times_k,q_array,v_array = original_solver(model, instancia, option = 'pwl',flag_full = flag_full, x_binary = x_binary, new_model = False, previous = None , parada = parada)
+  y0_array,x0_array,times_k,q_array,v_array = original_solver(model, instancia, option = 'pwl', flag_full = flag_full, x_binary = x_binary, new_model = False, previous = None , parada = parada)
   y0_array = pd.DataFrame(data = y0_array)
   sol_to_OMP(y0_array,archivo_sols)
 else:
   from funciones_alt import *  
   model,info,instancia = reader(archivo_prob,archivo_blocks)
   model.setParam('NumericFocus',3)
-  y0_array,x0_array,times_k,q_array,v_array = original_solver(model, instancia, option = 'pwl', flag_full = flag_full, x_binary = x_binary, parada = parada)
+  y0_array,x0_array,times_k,q_array,v_array = original_solver(model, instancia, option = 'pwl', flag_full = flag_full, x_binary = x_binary, previous = None, parada = parada)
   y0_array = pd.DataFrame(data = y0_array)
   sol_to_OMP(y0_array,archivo_sols)
