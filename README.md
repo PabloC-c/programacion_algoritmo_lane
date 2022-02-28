@@ -6,19 +6,21 @@ Instrucciones para ejecutar la implementación del algoritmo de Lane. Más espec
 - La informacion de la mina debe estar en dos archivos con formato .prob y .blocks
 
 # Ejecucción
-El algoritmo es ejecutado con el comando "python start.py Archivo_prob Archivo_block Soluciones Restriccion Parada Modelo". Este commando permite escoger las siguientes opciones :
-- Archivo_prob :
+El algoritmo es ejecutado con el comando "python start.py ordenado archivo_prob archivo_blocks archivo_sols restringido parada x_binario ". Este commando permite escoger las siguientes opciones :
+- ordenado :
+    - Valor binario 0 o 1. Nos permite elegir si queremos ejecutar el modelo con precedencias ordenadas o generales. 1 para precedencias ordenadas y 0 para generales 
+- archivo_prob :
     - Dirección del archivo .prob a utilizar    
-- Archivo_block :
-    - Dirección del archivo .block a utilizar      
-- Soluciones :
-    - Carpeta donde se guardarán las soluciones    
-- Restriccion (Restringido/Libre) :
-    - Utilizar modelo Restringido (Obliga al algoritmo a extraer en cada iteración) o Libre (No obliga a extraer) 
-- Parada (Concava/Cauchy) :
-    - Utilizar una parada Concava (El algoritmo para cuando el nuevo valor objetivo es mas bajo que el anterior) o el método de Cauchy (Busca la convergencia del algoritmo)
-- Modelo (Ordenado/General):
-    - Utilizar el modelo con precedencias ordenadas (solo incrementos) o con precedencias generales (bancos y fases)
+- archivo_blocks :
+    - Dirección del archivo .blocks a utilizar
+- archivo_sols:
+    - Direccion donde se guardara el archivo .sol generado          
+- restringido :
+    - Valor binario 0 o 1. Nos permite elegir si queremos ejecutar el modelo restringido o libre. 1 para restringido y 0 para libre     
+- parada :
+    - Condicion de parada del algoritmo. concava para la condicion concava y cauchy para condicion de cauchy 
+- x_binario :
+    - Valor binario 0 o 1. Nos permite elegir si queremos que la variable x sea binaria o no. 1 para x binario y 0 para x continua
 
 # Recomendaciones.
 En caso de intentar resolver un problema muy grande, es recomendable utilizar sbatch para ejecutar el programa.

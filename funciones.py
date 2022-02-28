@@ -650,7 +650,7 @@ def cut_mine(model):
   else:
     return False
     
-##########
+####################################################################
 
 def postoptimizacion(model,instancia,y):
   soly = pd.DataFrame(y)
@@ -667,7 +667,7 @@ def postoptimizacion(model,instancia,y):
   soly = soly.to_numpy()
   return soly
 
-##########################################################
+####################################################################
 
 def create_arrays_y(y,model,instancia):
   u_array = calculate_u(y,model,instancia)
@@ -696,4 +696,25 @@ def create_arrays_y(y,model,instancia):
   aux_v_array.append(0)
   aux_q_array.append([0])
   return aux_q_array,aux_v_array
-  
+
+######################################################################
+
+def sol_to_OMP(y,directory):
+  y = y[[0,1,2,3]]
+  y = y.sort_values([0,1,2,3], ascending=True)
+  y[3] = y[3].round(6)
+  flag = False
+  t0   = int(min(y[2]))
+  if t0 == 1:
+    flag = True
+  string = ''
+  for i in range(len(y)):
+    for j in range(3):
+      if j < 2 or (j == 2 and not Flag):
+        string += str(int(y[j].iloc[i])) + ' '
+      else:
+        string += str(int(y[j].iloc[i]-1)) + ' '
+    string += str(y[3].iloc[i])+'\n'
+  f = open(directory, "w")
+  f.write(string)
+  f.close()

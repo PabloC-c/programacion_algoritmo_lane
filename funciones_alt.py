@@ -666,9 +666,7 @@ def last_increment(y0,instancia,model):
  
 #########################################################################################################################################################################################################################################
 
-def sol_to_OMP(directory):
-  y = read_y(directory)
-  y = pd.read_csv(directory, header = None, sep = ' ',dtype = float)
+def sol_to_OMP(y):
   y = y[[0,1,2,3]]
   y = y.sort_values([0,1,2,3], ascending=True)
   y[3] = y[3].round(6)
@@ -688,8 +686,6 @@ def sol_to_OMP(directory):
   f = open(new_directory, "w")
   f.write(string)
   f.close()
-
-
 
 def grafo(model,instancia):
   peso=[[0,0] for i in range(model._nbenches2*model._nphases2)]
