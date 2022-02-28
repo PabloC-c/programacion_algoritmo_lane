@@ -261,9 +261,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
     aux_v_array = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
-  print('Creacion modelo')  
+  #print('Creacion modelo')  
   create_model(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full, x_binary)
-  print("Modelo creado")
+  #print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
   v_array = [aux_v_array]
   q_array = [aux_q_array]
@@ -276,7 +276,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
   M = 0
   #Tiempos de ejecucion
   times_k  = []
-  print('Primer ciclo')
+  #print('Primer ciclo')
   while True:
     time0   = time.time()
     #Arreglos para las variables x,y y los valores u,q
@@ -288,12 +288,12 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     t     = 1
     # Optimizacion de V
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
-    print("Segundo ciclo")
+    #print("Segundo ciclo")
     while Q_k > 10**(-3) and t <= model._nperiods:
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
-      print('Comienzo optimizacion')
+      #print('Comienzo optimizacion')
       model.optimize()
-      print('Optimizacion Terminada')
+      #print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
       x_array.append(bar_x)
@@ -312,7 +312,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
         q_bar_array.append(bar_q)
       #Se quita el tonelaje extraido
       Q_k = Q_k - bar_q
-      print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
+      #print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
       #Se codifica la solucion y de la forma: bloque, destino, tiempo, valor de y
       codify_y(y_array,bar_y,t,model,instancia)
       #Se aumenta el periodo
@@ -323,9 +323,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
       if t == model._nperiods:
         update_objective(model,instancia,aux_q_array,aux_v_array,model._nperiods,option)
     #Se calcula lo que vale la mina al tener todas las toneladas a partir de los valores u
-    print('Toneladas finales = ',Q_k)
+    #print('Toneladas finales = ',Q_k)
     V_Q_t = sum(np.float64(u_array[i])*(model._discount_rate**i) for i in range(len(u_array)))
-    print('Valor de la mina = ',V_Q_t)
+    #print('Valor de la mina = ',V_Q_t)
     #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
     aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)]
     aux_q_array = [[Q0 - sum(q_bar_array[j] for j in range(0,i))] for i in range(0,len(q_bar_array)+1)]
@@ -346,8 +346,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     vk1 = v_array[-1][0]
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if parada == 'concava':
-      print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
-      print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
+      #print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
+      #print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
       # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
       if vk1 <= vk0 and k > 2:
           if flag_full:
@@ -359,25 +359,25 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False,x_binary = 
     if parada == 'cauchy':
        epsilon = vk1/100
        N = int(k/2)
-       print("k =" , k)
+       #print("k =" , k)
        if v_array[-1][0] > M:
           M = v_array[-1][0]
           x0_max,y0_max = x_array,y_array
           i_max = k
        if k==10:
-         print("No converge.")
-         print("Máximo encontrado :", M , " Iteracion :",i_max)
+         #print("No converge.")
+         #print("Máximo encontrado :", M , " Iteracion :",i_max)
          x0_array,y0_array = x0_max,y0_max
          return y0_array,x0_array,times_k,q_array,v_array
        elif k>3:
          for i in range(N,len(v_array)):
            for j in range(N,len(v_array)):
              dif = abs(v_array[i][0]-v_array[j][0])
-             print("diferencia =", dif, "epsilon =", epsilon, "cauchy =",dif<=epsilon)
+             #print("diferencia =", dif, "epsilon =", epsilon, "cauchy =",dif<=epsilon)
              if dif > epsilon:
                break
            else:
-             print("converge al valor:", v_array[-1][0], " Iteracion :",k)
+             #print("converge al valor:", v_array[-1][0], " Iteracion :",k)
              x0_array, y0_array = x_array,y_array 
              return y0_array,x0_array,times_k,q_array,v_array
            break
@@ -710,7 +710,7 @@ def sol_to_OMP(y,directory):
   string = ''
   for i in range(len(y)):
     for j in range(3):
-      if j < 2 or (j == 2 and not Flag):
+      if j < 2 or (j == 2 and not flag):
         string += str(int(y[j].iloc[i])) + ' '
       else:
         string += str(int(y[j].iloc[i]-1)) + ' '

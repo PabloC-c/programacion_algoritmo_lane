@@ -302,9 +302,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     aux_q_array = [[(Q0*i)/5] for i in range(5,-1,-1)]
     aux_v_array = [0 for i in range(5,-1,-1)]
   #Se crea el modelo
-  print('Creacion modelo')  
+  #print('Creacion modelo')  
   create_model2(model,instancia,Q0,1,aux_v_array,aux_q_array,option, flag_full, x_binary)
-  print("Modelo creado")
+  #print("Modelo creado")
   #Arreglos para guardar todos los valores de la funcion V y la variable Q-q
   v_array = [[0 for i in range(model._nperiods+1)]]
   q_array = [[[(Q0*i)/model._nperiods] for i in range(model._nperiods,-1,-1)]]
@@ -317,7 +317,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
   M=0
   #Tiempos de ejecucion
   times_k  = []
-  print('Primer ciclo')
+  #print('Primer ciclo')
   while True:
     time0   = time.time()
     #Arreglos para las variables x,y y los valores u,q
@@ -329,12 +329,12 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     t     = 1
     # Optimizacion de V
     # Deja de iterar cuando no hay nada en la mina o se acabó el tiempo total
-    print("Segundo ciclo")
+    #print("Segundo ciclo")
     while Q_k > 10**(-3) and t <= model._nperiods:
       #if t==1:
         #cortar(model,instancia)
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
-      print('Comienzo optimizacion')
+      #print('Comienzo optimizacion')
       model.optimize()
       #if t>1:
         #a=add(model,instancia)
@@ -342,7 +342,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
         #for x in a:
         #  condition= condition and x
         #if condition==True:
-         # print(model._bincrements2== model._bincrements)
+         # #print(model._bincrements2== model._bincrements)
           #model._bincrements= model._bincrements2.copy()
           #blocks=[]
           #for set in model._bincrements2:
@@ -350,7 +350,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
             #  blocks += set2
           #print(model._blocks==blocks)
           #model._blocks=blocks
-      print('Optimizacion Terminada')
+      #print('Optimizacion Terminada')
       #Se obtienen los vectores solucion x,y,z y los valores u,q
       bar_x = get_varx(model)
       x_array.append(bar_x)
@@ -364,7 +364,7 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
       q_bar_array.append(bar_q)
       #Se quita el tonelaje extraido
       Q_k = Q_k - bar_q
-      print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
+      #print('Periodos t = ',t,'. Toneladas extraidas =',bar_q,'. Toneladas restantes = ',Q_k)
       #Se codifica la solucion y de la forma: bloque, destino, tiempo, valor de y
       codify_y(y_array,bar_y,t-1,model,instancia)
       #Se aumenta el periodo
@@ -381,9 +381,9 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     model._bincrements= model._bincrements2.copy()
     model._nbenches= int(model._nbenches2)
     model._nphases= int(model._nphases2)
-    print('Toneladas finales = ',Q_k)
+    #print('Toneladas finales = ',Q_k)
     V_Q_t = sum(u_array[i]*(model._discount_rate**i) for i in range(len(u_array)))
-    print('Valor de la mina = ',V_Q_t)
+    #print('Valor de la mina = ',V_Q_t)
     #Se crean los vectores para guardar los valores V(Q-sum q_i) y Q - sum q_i
     aux_v_array = [V_Q_t - sum(u_array[j]*(model._discount_rate**(j)) for j in range(0,i)) for i in range(0,len(u_array)+1)] 
     #aux_v_array = []
@@ -416,8 +416,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     vk1 = v_array[-1][0]
     # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
     if parada == 'concava':
-      print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
-      print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
+      #print('Valor anterior = ',vk0,'.Valor nuevo = ',vk1,'Valor k =',k)
+      #print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
       # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
       if vk1 <= vk0 and k > 2:
           return y0_array,x0_array,times_k,q_array,v_array
@@ -425,25 +425,25 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
     if parada == 'cauchy':
        epsilon = vk1/100
        N = int(k/2)
-       print("k =" , k)
+       #print("k =" , k)
        if v_array[-1][0] > M:
           M = v_array[-1][0]
           x0_max,y0_max = x_array,y_array
           i_max = k
        if k==10:
-         print("No converge.")
-         print("Máximo encontrado :", M , " Iteracion :",i_max)
+         #print("No converge.")
+         #print("Máximo encontrado :", M , " Iteracion :",i_max)
          x0_array,y0_array = x0_max,y0_max
          return y0_array,x0_array,times_k,q_array,v_array
        elif k>3:
          for i in range(N,len(v_array)):
            for j in range(N,len(v_array)):
              dif = abs(v_array[i][0]-v_array[j][0])
-             print("diferencia =", dif, "epsilon =", epsilon, "cauchy =",dif<=epsilon)
+             #print("diferencia =", dif, "epsilon =", epsilon, "cauchy =",dif<=epsilon)
              if dif > epsilon:
                break
            else:
-             print("converge al valor:",v_array[-1][0], " Iteracion :",k)
+             #print("converge al valor:",v_array[-1][0], " Iteracion :",k)
              x0_array, y0_array = x_array,y_array
              return y0_array,x0_array,times_k,q_array,v_array
            break
@@ -666,7 +666,7 @@ def last_increment(y0,instancia,model):
  
 #########################################################################################################################################################################################################################################
 
-def sol_to_OMP(y):
+def sol_to_OMP(y,directory):
   y = y[[0,1,2,3]]
   y = y.sort_values([0,1,2,3], ascending=True)
   y[3] = y[3].round(6)
@@ -677,13 +677,12 @@ def sol_to_OMP(y):
   string = ''
   for i in range(len(y)):
     for j in range(3):
-      if j < 2 or (j == 2 and not Flag):
+      if j < 2 or (j == 2 and not flag):
         string += str(int(y[j].iloc[i])) + ' '
       else:
         string += str(int(y[j].iloc[i]-1)) + ' '
     string += str(y[3].iloc[i])+'\n'
-  new_directory = directory[:-3]+'sol'
-  f = open(new_directory, "w")
+  f = open(directory, "w")
   f.write(string)
   f.close()
 
@@ -706,7 +705,7 @@ def grafo(model,instancia):
     i=i+1
   return peso
     
-# Python3 Program to print BFS traversal
+# Python3 Program to #print BFS traversal
 # from a given source vertex. BFS(int s)
 # traverses vertices reachable from s.
 from collections import defaultdict
@@ -721,7 +720,7 @@ class Graph:
 	# function to add an edge to graph
   def addEdge(self,u,v):
     self.graph[u].append(v)
-	# Function to print a BFS of graph
+	# Function to #print a BFS of graph
   def BFS(self, s,model):
 		# Mark all the vertices as not visited
     caminos = [0] * (max(self.graph)+1)
@@ -742,7 +741,7 @@ class Graph:
 
     while len(queue)>0:
 			# Dequeue a vertex from
-			# queue and print it
+			# queue and #print it
       s = queue.pop(0)
       
 			# Get all adjacent vertices of the
@@ -868,7 +867,7 @@ def add(model,instancia):
       sin_pre.append(n)
   for x in reached:
     nodo= x[1] + x[0]* model._nphases2
-    print("nodo",nodo)
+    #print("nodo",nodo)
     visited.append( model._graph.BFS(nodo,model))
   for i in range(len(visited[0])):
     visited2=False
@@ -879,7 +878,7 @@ def add(model,instancia):
   norma_max=0
   max_phases=0
   max_benches=0
-  print(visited)
+  #print(visited)
   for i in range(len(visited)):
     if visited[i]== True:
       norma= (i%model._nphases2) + (i//model._nphases2)
