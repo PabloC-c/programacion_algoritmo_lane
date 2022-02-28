@@ -7,7 +7,6 @@ soluciones = sys.argv[3]
 restriccion = sys.argv[4]
 parada = sys.argv[5]
 modelo = sys.argv[6]
-cluster = False
 
 if restriccion == "Libre":
     restriccion = int(0)
@@ -20,10 +19,8 @@ else:
     parada = int(1) 
      
 if modelo  == "Ordenado":
-    print("ord")
     extension = ""
 else:
-    print("gen")
     extension = "_alt"   
     
     

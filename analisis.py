@@ -43,7 +43,7 @@ if prints:
         nombre_mina = m
     print(directory)
     print(nombre_mina)
-    modelo = "funciones_alt"
+    modelo = "funciones"
     flag = True
     if modelo == "funciones":
       if flag:

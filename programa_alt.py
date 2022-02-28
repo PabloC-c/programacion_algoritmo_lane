@@ -1,12 +1,18 @@
 from funciones_alt import *
 import sys
 
-indice = int(sys.argv[1])
-flagfull = int(sys.argv[2])
+prob = sys.argv[1]
+blocks = sys.argv[2]
+flagfull = int(sys.argv[3])
+stop = int(sys.argv[4])
+soluciones = sys.argv[5]
+
 #Direcciones: pares de la forma (direccion archivo .prob, direccion archivo .blocks)
 #Direcctiorio donde se corre /home/pcarrascoc/practica/Codigo/
-direcciones_pablo = [('../../Instancias/mines/kd_4phases_f0.prob','../../Instancias/incrementsBlocks/kd_inc.blocks'),('../../Instancias/mines/chaiten_4phases_f0.prob','../../Instancias/incrementsBlocks/chaiten_inc.blocks'),('../../Instancias/mines/marvinml_4phases_f0.prob','../../Instancias/incrementsBlocks/marvinml_inc.blocks'),('../../Instancias/mines/palomo25_4phases_f0.prob','../../Instancias/incrementsBlocks/palomo25_inc.blocks')]
-direcciones = [direcciones_pablo[indice]]
+#direcciones_pablo = [('../../Instancias/mines/kd_4phases_f0.prob','../../Instancias/incrementsBlocks/kd_inc.blocks'),('../../Instancias/mines/chaiten_4phases_f0.prob','../../Instancias/incrementsBlocks/chaiten_inc.blocks'),('../../Instancias/mines/marvinml_4phases_f0.prob','../../Instancias/incrementsBlocks/marvinml_inc.blocks'),('../../Instancias/mines/palomo25_4phases_f0.prob','../../Instancias/incrementsBlocks/palomo25_inc.blocks')]
+
+direcciones = [(prob,blocks)]
+
 #data = {0:["NDESTINATIONS", "NPERIODS", "DISCOUNT_RATE", "NCONSTRAINTS", "CONSTRAINT","CONSTRAINT","OBJECTIVE","OBJETIVO","INCREMENTS"],1:["2","20","0.1","2","0 4 P * L 2","1 4 P 1 L 1","0 5","1 6","2"]}
 #bloques= {0:[0,1,2,3,4],1:[0,0,1,1,2],2:[1,1,1,1,2],3:[1,1,1,1,2],4:[1,1,1,1,2],5:[1,1,-2,1,2],6:[1,1,-2,1,2],7:[1,1,1,1,2],8:[1,1,1,1,2],9:[0,0,1,1,2]}
 #direcciones =  [direcciones_pablo[1]] #[('../Instancias/mines/marvinml_4phases_f0.prob','../Instancias/incrementsBlocks/marvinml_inc.blocks')]
@@ -17,20 +23,19 @@ for valor in direcciones:
   #model.setParam("MIPFocus",2)
   model.setParam('NumericFocus',3)
   flag = bool(flagfull)
-  directory = valor[1]
-  directory = directory[33:-6]
-  if flag:
-    carpeta = "sols_model2_restr"
+  stop = bool(stop)
+  if stop:
+      stop = "cauchy"
   else:
-    carpeta = "sols_model2_free"
+      stop = "concava"
   directory = valor[1]
   directory = directory[33:-6]
-  directory_times  = '../../'+carpeta+ directory[:-1]+'_times.txt'
-  directory_v      = '../../'+carpeta+ directory[:-1]+'_v_k.txt'
-  directory_y      = '../../'+carpeta+ directory + 'txt'
-  directory_table1 = '../../'+carpeta+ directory[:-1]+'_values.txt'
-  directory_table2 = '../../'+carpeta+ directory[:-1]+'_increments.txt'
-  directory_table3 = '../../'+carpeta+ directory[:-1]+'_constraints.txt'
+  directory_times  = soluciones + directory[:-1]+'_times.txt'
+  directory_v      = soluciones + directory[:-1]+'_v_k.txt'
+  directory_y      = soluciones + directory + 'txt'
+  directory_table1 = soluciones + directory[:-1]+'_values.txt'
+  directory_table2 = soluciones + directory[:-1]+'_increments.txt'
+  directory_table3 = soluciones + directory[:-1]+'_constraints.txt'
   #directory_prev = valor[0]
   #directory_prev = directory_prev[23:-5]
   #array = directory_prev.split('_')
@@ -41,7 +46,8 @@ for valor in direcciones:
   #final_ip = '../../Instancias/sols/'+directory_prev+'_default.TOPOSORT.ip.sol'
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
-  y0_array,x0_array,times_k,q_array,v_array= original_solver(model,instancia,option = 'pwl',flag_full =flag, x_binary = False, parada = "concava") 
+  print(soluciones,stop)
+  y0_array,x0_array,times_k,q_array,v_array= original_solver(model,instancia,option = 'pwl',flag_full =flag, x_binary = False, parada = stop) 
   writer_y(directory_y,y0_array)
   y = read_y(directory_y)
   feasible,output,tabla,df,df3,x_binary = check_feasibility(instancia,model,y)

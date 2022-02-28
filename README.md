@@ -2,25 +2,23 @@
 Instrucciones para ejecutar la implementación del algoritmo de Lane. Más especificaciones sobre el algoritmo y su implementación está en la carpeta "Informe"
 
 # Instrucciones previas
-- Mover carpeta "Instancias" dos direcciones antes de este repositorio (cd ../../) <br/>
-- Crear las siguientes carpetas en cd ../../ :  
-    - sols2_free
-    - sols2_restr
-    - sols_model2_free
-    - sols_model2_restr
+- Es necesario crear una carpeta para guardar las soluciones entregadas
+- La informacion de la mina debe estar en dos archivos con formato .prob y .blocks
 
 # Ejecucción
-El algoritmo es ejecutado con el comando "python start.py". Este commando permite escoger las siguientes opciones :
-- Nombre de la mina :
-    - Nombre de la mina a optimizar (kd/chaiten/marvin/palomo)    
-- Utiliza cluster :
-    - Utilizar cluster en caso de que el proceso de optimización se tarde demasiado.
-        - En caso de utilizar cluster, es necesario entregar un email para notificar el estado del programa.       
-- Precedencias :
-    - Utilizar precedencias Ordenadas (solo incrementos) o Generales (bancos y fases)    
-- Modelo :
+El algoritmo es ejecutado con el comando "python start.py Archivo_prob Archivo_block Soluciones Restriccion Parada Modelo". Este commando permite escoger las siguientes opciones :
+- Archivo_prob :
+    - Dirección del archivo .prob a utilizar    
+- Archivo_block :
+    - Dirección del archivo .block a utilizar      
+- Soluciones :
+    - Carpeta donde se guardarán las soluciones    
+- Restriccion (Restringido/Libre) :
     - Utilizar modelo Restringido (Obliga al algoritmo a extraer en cada iteración) o Libre (No obliga a extraer) 
-- Parada :
+- Parada (Concava/Cauchy) :
     - Utilizar una parada Concava (El algoritmo para cuando el nuevo valor objetivo es mas bajo que el anterior) o el método de Cauchy (Busca la convergencia del algoritmo)
+- Modelo (Ordenado/General):
+    - Utilizar el modelo con precedencias ordenadas (solo incrementos) o con precedencias generales (bancos y fases)
 
-En caso de utilizar el cluster, los archivos .out y .err se crean en la carpeta "Comando_sbatch" dentro de sus directorios respectivos.
+# Recomendaciones.
+En caso de intentar resolver un problema muy grande, es recomendable utilizar sbatch para ejecutar el programa.

@@ -420,9 +420,8 @@ def original_solver(model,instancia,option = 'pwl',flag_full = False, x_binary =
       print('Menor o igual:',vk1 <= vk0,'K > 2:',k>2)
       # Condiciones de término. Entrega el bar_x máximo antes de que la función objetivo disminuya
       if vk1 <= vk0 and k > 2:
-          if flag_full:
-            return y0_array,x0_array,times_k,q_array,v_array
-            #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
+          return y0_array,x0_array,times_k,q_array,v_array
+          #Output: solucion y, solucion x, tiempos para cada k, arreglo de toneladas sacadas para cada k, arreglo de valores v para acada k
     if parada == 'cauchy':
        epsilon = vk1/100
        N = int(k/2)
