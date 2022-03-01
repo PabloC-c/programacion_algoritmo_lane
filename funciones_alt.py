@@ -140,11 +140,11 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     q_var= model.addVars(model._nphases,lb=0,vtype=GRB.CONTINUOUS,name="q_var2")
     v_var= model.addVars(model._nphases,vtype=GRB.CONTINUOUS,name="v_var2")
     for i in range(model._nphases):
-       print(qlist[i])
-       print(vlist[i])
+       #print(qlist[i])
+       #print(vlist[i])
        model.addGenConstrPWL(q_var[i], v_var[i], qlist[i],vlist[i], "myPWLConstr")
     model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)) + sum(v_var[p] for p in range(model._nphases2)),GRB.MAXIMIZE)
-    model.addConstrs((q_var[p] + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches)) == Q[p] for p in range(model._nphases)) ,'aux_cons')
+    model.addConstrs(((q_var[p] + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches)) == Q[p]) for p in range(model._nphases2)) ,'aux_cons')
     #model.setPWLObj(q_var,qlist,vlist)
   #Anadimos las restricciones
   #Restricciones de capacidad
@@ -313,7 +313,7 @@ def codify_y(y0,y,t,model,instancia):
 #Funcion solver
 
 def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_binary = False, previous = None, parada = 'concava',voption="homo"):
-  #model.setParam('OutputFlag',0)
+  model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
   if voption=="homo":
@@ -358,7 +358,6 @@ def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_bin
   times_k  = []
   #print('Primer ciclo')
   while True:
-    print(k)
     if k>1:
         model=initialize_model(info,instancia)
         model.setParam('OutputFlag',0)
@@ -384,7 +383,6 @@ def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_bin
       Q_o=sum(Q_k[p] for p in range(model._nphases2))
     while Q_o > 10**(-3) and t <= model._nperiods:
       model.optimize()
-      print(t)
       #if t==1:
         #cortar(model,instancia)
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
@@ -434,7 +432,7 @@ def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_bin
       #Se aumenta el periodo
       t = t + 1
       #Se actualiza el modelo con respecto a las toneladas restantes 
-      update_constraints(model,Q_k,bar_x)
+      update_constraints(model,Q_k,bar_x,voption)
       #Se actualiza el modelo con respecto al tiempo
       if voption=="homo":
         if t == model._nperiods:
