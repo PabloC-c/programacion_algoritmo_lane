@@ -124,15 +124,12 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     vlist = vlist*model._discount_rate
     #Se crea variable auxiliar
     q_var = model.addVar(lb=0,ub = Q,vtype= GRB.CONTINUOUS,name="q_var")
-    v_var = model.addVar(vtype= GRB.CONTINUOUS,name="q_var")
-    switch= model.addVar(vtype=GRB.BINARY,name="switch")
-    model.addConstr(switch <=  sum(x[i,p] for i in  range(model._nbenches) for p in range(model._nphases))/(model._nbenches*model._nphases))
     #Se define la variable auxiliar como Q-q
     model.addConstr(q_var + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches) for p in range(model._nphases)) == Q ,'aux_cons')
     #Se crea la funcion objetivo
-    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)) + v_var*switch,GRB.MAXIMIZE)
+    model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)),GRB.MAXIMIZE)
     #Se anade la funcion lineal por partes
-    model.addGenConstrPWL(q_var, v_var, qlist,vlist, "myPWLConstr")
+    model.setPWLObj(q_var,qlist,vlist)
   if option == "pwl" and voption=="phase":
     for p in range(model._nphases):
           qlist[p] = np.array([(qlist[p][i])for i in range(len(qlist[p]))])
@@ -143,6 +140,8 @@ def create_model2(model,instancia,Q,t,vlist,qlist,option = 'pwl', flag_full = Fa
     q_var= model.addVars(model._nphases,lb=0,vtype=GRB.CONTINUOUS,name="q_var2")
     v_var= model.addVars(model._nphases,vtype=GRB.CONTINUOUS,name="v_var2")
     for i in range(model._nphases):
+       print(qlist[i])
+       print(vlist[i])
        model.addGenConstrPWL(q_var[i], v_var[i], qlist[i],vlist[i], "myPWLConstr")
     model.setObjective(sum(y[i,d] * np.float64(instancia[model._infoobj[d]].iloc[i]) for i in model._blocks for d in range(model._ndestinations)) + sum(v_var[p] for p in range(model._nphases2)),GRB.MAXIMIZE)
     model.addConstrs((q_var[p] + sum(x[i,p]*model._oincrements[i][p] for i in range(model._nbenches)) == Q[p] for p in range(model._nphases)) ,'aux_cons')
@@ -216,7 +215,7 @@ def get_i_obj(y,x,instancia,model,t):
   
 
 def update_constraints(model,Q,x = None,voption="homo"):
-  if voption=="home":
+  if voption=="homo":
     aux_cons     = model.getConstrByName('aux_cons')
     aux_cons.rhs = Q
   if voption=="phase":
@@ -314,7 +313,7 @@ def codify_y(y0,y,t,model,instancia):
 #Funcion solver
 
 def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_binary = False, previous = None, parada = 'concava',voption="homo"):
-  model.setParam('OutputFlag',0)
+  #model.setParam('OutputFlag',0)
   # Solver para el modelo usando regresion lineal/piece wise linear
   # Variables a rellenar para la regresion lineal/piece wise linear
   if voption=="homo":
@@ -359,6 +358,7 @@ def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_bin
   times_k  = []
   #print('Primer ciclo')
   while True:
+    print(k)
     if k>1:
         model=initialize_model(info,instancia)
         model.setParam('OutputFlag',0)
@@ -383,6 +383,8 @@ def original_solver(model,instancia,info,option = 'pwl',flag_full = False, x_bin
     if voption=="phase":
       Q_o=sum(Q_k[p] for p in range(model._nphases2))
     while Q_o > 10**(-3) and t <= model._nperiods:
+      model.optimize()
+      print(t)
       #if t==1:
         #cortar(model,instancia)
       #Optimizacion de model cuando resta Q_k en la mina en el tiempo t
