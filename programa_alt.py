@@ -6,6 +6,7 @@ blocks = sys.argv[2]
 flagfull = int(sys.argv[3])
 stop = int(sys.argv[4])
 soluciones = sys.argv[5]
+future_value= int(sys.argv[6])
 
 #Direcciones: pares de la forma (direccion archivo .prob, direccion archivo .blocks)
 #Direcctiorio donde se corre /home/pcarrascoc/practica/Codigo/
@@ -24,6 +25,11 @@ for valor in direcciones:
   model.setParam('NumericFocus',3)
   flag = bool(flagfull)
   stop = bool(stop)
+  future_value= bool(future_value)
+  if future_value:
+    future_valuue= "homo"
+  else:
+    future_value="phase"
   if stop:
       stop = "cauchy"
   else:
@@ -47,7 +53,7 @@ for valor in direcciones:
   #y_integer = read_y(final_ip)
   #last_increment(y_integer,instancia,model)
   print(soluciones,stop)
-  y0_array,x0_array,times_k,q_array,v_array= original_solver(model,instancia,option = 'pwl',flag_full =flag, x_binary = False, parada = stop) 
+  y0_array,x0_array,times_k,q_array,v_array= original_solver(model,instancia,option = 'pwl',flag_full =flag, x_binary = False, parada = stop,voption=future_value) 
   writer_y(directory_y,y0_array)
   y = read_y(directory_y)
   feasible,output,tabla,df,df3,x_binary = check_feasibility(instancia,model,y)
